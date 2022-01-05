@@ -51,7 +51,7 @@ namespace tank {
     function loadTexture(texture: WebGLTexture, image: HTMLImageElement, gl: WebGL2RenderingContext) {
         gl.bindTexture(gl.TEXTURE_2D, texture)
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
         gl.generateMipmap(gl.TEXTURE_2D)
         gl.bindTexture(gl.TEXTURE_2D, null)
@@ -67,7 +67,7 @@ namespace tank {
         gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image[4])
         gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image[5])
 
-        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
         gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
         gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
         gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
@@ -108,6 +108,12 @@ namespace tank {
         gl.linkProgram(prog)
         console.log(gl.getProgramInfoLog(prog))
 
+        const progSky = gl.createProgram()
+        gl.attachShader(progSky, loadShader(gl, assets['shader_skyVert'], gl.VERTEX_SHADER))
+        gl.attachShader(progSky, loadShader(gl, assets['shader_skyFrag'], gl.FRAGMENT_SHADER))
+        gl.linkProgram(progSky)
+        console.log(gl.getProgramInfoLog(progSky))
+
         const vao = gl.createVertexArray()
         gl.bindVertexArray(vao)
 
@@ -125,6 +131,23 @@ namespace tank {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, eidx)
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(findex), gl.STATIC_DRAW)
 
+        gl.bindVertexArray(null)
+
+        const skyvao = gl.createVertexArray()
+        gl.bindVertexArray(skyvao)
+
+        const skyVertexs = [
+            -1., -1., -0.5,
+            -1., 1., -0.5,
+            1., 1., -0.5,
+            1., -1., -0.5
+        ]
+
+        const skyvbo = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, skyvbo)
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(skyVertexs), gl.STATIC_DRAW)
+        gl.enableVertexAttribArray(gl.getAttribLocation(progSky, 'pos'))
+        gl.vertexAttribPointer(gl.getAttribLocation(progSky, 'pos'), 3, gl.FLOAT, false, 4 * 3, 0)
 
         gl.bindVertexArray(null)
 
@@ -147,12 +170,33 @@ namespace tank {
             assets['texture_sky5']
         ], gl)
 
+        
         displayFuncs.push((delta: number) => {
             let perspective = glm.perspective(glm.radians(65), canvas.width / canvas.height, 0.01, 1000)
             gl.viewport(0, 0, canvas.width, canvas.height)
+
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+            gl.useProgram(progSky)
+
+            gl.bindVertexArray(skyvao)
+            gl.bindBuffer(gl.ARRAY_BUFFER, skyvbo)
+
+            gl.uniformMatrix4fv(gl.getUniformLocation(progSky, 'inPerspective'), false, glm.inverse(perspective).array)
+            gl.uniformMatrix4fv(gl.getUniformLocation(progSky, 'perspective'), false, perspective.array)
+            gl.activeTexture(gl.TEXTURE2)
+            gl.bindTexture(gl.TEXTURE_CUBE_MAP, sky)
+            gl.uniform1i(gl.getUniformLocation(progSky, 'skyMap'), 2)
+
+            gl.disable(gl.CULL_FACE)
+            gl.drawArrays(gl.TRIANGLE_FAN, 0, 4)
+            
+            gl.clear(gl.DEPTH_BUFFER_BIT)
+
             gl.useProgram(prog)
 
             gl.bindVertexArray(vao)
+            gl.bindBuffer(gl.ARRAY_BUFFER, vbo)
 
             gl.uniform2f(gl.getUniformLocation(prog, 'mpos'), mouseXNoLimit, mouseYNoLimit)
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'perspective'), false, perspective.array)
@@ -197,8 +241,6 @@ namespace tank {
                 0., 0., 0., 1.
             )
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'rotate'), false, rotateY['*'](rotateX).array)
-
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT)
 
             gl.enable(gl.CULL_FACE)
             gl.drawElements(gl.TRIANGLE_FAN, findex.length, gl.UNSIGNED_INT, 0)

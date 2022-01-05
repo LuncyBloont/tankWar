@@ -34,19 +34,21 @@ void main() {
     float alphaFnl = pow(a_s_m.r, 1.);
     float specular = a_s_m.g;
     float metallic = a_s_m.b;
-    vec3 ref = reflect(viewDir, normal);
-    vec3 skycol = textureLod(skyMap, ref, (1. - specular) * 10. + 6.).rgb;
-    vec3 skydiff = textureLod(skyMap, normal, 16.).rgb;
+    vec3 ref = -reflect(viewDir, normal);
+    vec3 skycol = textureLod(skyMap, ref, (1. - specular) * 10. + 4.).rgb;
+    vec3 skydiff = textureLod(skyMap, normal, 14.).rgb;
+    skycol = skycol * 1.4;
+    skydiff = skydiff * 1.4;
     vec3 ks = alb * 0.1 + vec3(0.9);
 
     col += alb * skydiff * envForce * 0.99 + skycol * envForce * 0.01;
-    col += alb * sunColor * sunForce * max(0., dot(sunDir, normal));
-    col += ks * sunColor * sunForce * pow(max(0., dot(ref, -sunDir)), 1. + 256. * pow(specular, 6.)) * specular;
-    col += skycol * pow((1. - max(0., dot(viewDir, normal))), 3.);
+    col += alb * sunColor * sunForce * max(0., dot(-sunDir, normal));
+    col += ks * sunColor * sunForce * pow(max(0., dot(ref, -sunDir)), 1. + 256. * pow(specular, 6.)) * (0.8 * specular + 0.2);
+    col += skycol * pow((1. - max(0., dot(viewDir, normal))), 4.);
 
     colm *= skycol * envForce + 
-        sunColor * sunForce * pow(max(0., dot(ref, -sunDir)), 1. + 256. * pow(specular, 6.)) * (specular * 1.7 + 0.3) + 
-        skycol * pow((1. - max(0., dot(viewDir, normal))), 3.);
+        sunColor * sunForce * pow(max(0., dot(ref, -sunDir)), 1. + 256. * pow(specular, 6.)) * (0.8 * specular + 0.2) + 
+        skycol * pow((1. - max(0., dot(viewDir, normal))), 4.);
 
     if (alphaBase + alphaFnl * (1. - pow(max(0., dot(viewDir, normal)), 5.)) <= noise(vpos.xy / vpos.w)) discard;
     color = vec4(mix(col, colm, metallic), 1.);

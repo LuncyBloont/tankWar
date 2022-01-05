@@ -14,10 +14,10 @@ uniform float time;
 uniform mat4 rotate;
 
 void main() {
-    gl_Position = perspective * (rotate * vec4(pos, 1.) + vec4(log(abs(mpos.x / 80.) + 1.) * sign(mpos.x), -log(abs(mpos.y / 80.) + 1.) * sign(mpos.y), -5., 0.));
+    fpos = (rotate * vec4(pos, 1.)).xyz + vec3(mpos * vec2(1. / 400., -1. / 400.), -5.);
+    gl_Position = perspective * vec4(fpos, 1.);
     fuv = uv;
     fnormal = (rotate * vec4(normal, 0.)).xyz;
-    fpos = (pos + vec3(mpos.x / 80., -mpos.y / 80., -5.));
     vpos = gl_Position;
     gl_PointSize = 1.;
 }
