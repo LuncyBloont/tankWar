@@ -35,6 +35,12 @@ void main() {
     float specular = a_s_m.g;
     float metallic = a_s_m.b;
     vec3 ref = -reflect(viewDir, normal);
+    mat3 rot = mat3(
+        cos(-0.6), 0., sin(-0.6),
+        0., 1., 0.,
+        -sin(-0.6), 0., cos(-0.6)
+    );
+    ref = rot * ref;
     vec3 skycol = textureLod(skyMap, ref, (1. - specular) * 10. + 4.).rgb;
     vec3 skydiff = textureLod(skyMap, normal, 14.).rgb;
     skycol = skycol * 1.4;
