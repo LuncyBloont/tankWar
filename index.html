@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Tank War</title>
+    <link type="text/css" rel="stylesheet" href="css/ui.css" />
+    <script src="js/glm-js.min.js"></script>
+    <script src="js/frame.js"></script>
+    <script src="js/assetLoader.js"></script>
+</head>
+
+<body>
+    <script>
+        cLoadAsset(() => {
+            tank.main()
+            tank.gameInit()
+            tank.startGame()
+        })
+
+    </script>
+</body>
+
+</html>

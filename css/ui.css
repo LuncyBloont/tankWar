@@ -1,0 +1,10 @@
+.centerTips {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+}
+
+.gameCanvas {
+    background: #000;
+    width: 100%;
+}

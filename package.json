@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "@types/node": "^17.0.4"
+  },
+  "dependencies": {
+    "glm-js": "^0.0.6-c"
+  }
+}
