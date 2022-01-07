@@ -31,7 +31,7 @@ namespace tank {
                 deltaTime = data.deltaTime
                 console.log(`Game info:\n    [${data.canvasWidth}x${data.canvasHeight}]\n    ${deltaTime}ms per frame`)
             } else {
-                document.write('Failed to read common config.')
+                console.log('Failed to read common config.')
             }
         })
         request.open('get', './config/default.json')
@@ -187,6 +187,7 @@ namespace tank {
             gl.activeTexture(gl.TEXTURE2)
             gl.bindTexture(gl.TEXTURE_CUBE_MAP, sky)
             gl.uniform1i(gl.getUniformLocation(progSky, 'skyMap'), 2)
+            gl.uniform1f(gl.getUniformLocation(progSky, 'time'), gameTime)
 
             gl.disable(gl.CULL_FACE)
             gl.drawArrays(gl.TRIANGLE_FAN, 0, 4)
@@ -236,8 +237,8 @@ namespace tank {
             )
             const rotateX = glm.mat4(
                 1., 0., 0., 0.,
-                0., Math.cos(t / 3.), -Math.sin(t / 3.), 0.,
-                0., Math.sin(t / 3.), Math.cos(t / 3.), 0.,
+                0., Math.cos(Math.cos(t * 3.) / 4.), -Math.sin(Math.cos(t * 3.) / 4.), 0.,
+                0., Math.sin(Math.cos(t * 3.) / 4.), Math.cos(Math.cos(t * 3.) / 4.), 0.,
                 0., 0., 0., 1.
             )
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'rotate'), false, rotateY['*'](rotateX).array)

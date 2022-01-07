@@ -1,3 +1,4 @@
+/// <reference path="./alert.ts" />
 var assetTabel = {};
 var assets = {};
 var assetsNow = 0;
@@ -20,6 +21,7 @@ function readAssetsTable(onloadfunc) {
 function waitAssetLoadDone(func) {
     var wait = setInterval(function () {
         console.log('loading');
+        ialert('Loading...' + Math.round(assetsNow / assetsTask * 100) + '%');
         if (assetsNow == assetsTask) {
             func();
             clearInterval(wait);
@@ -41,7 +43,7 @@ function initAssets() {
                 console.log(assetTabel[i] + ' GOT!');
             });
             img_1.addEventListener('error', function (ev) {
-                document.write('Web multimedia assets request error.');
+                console.log('Web multimedia assets request error.');
             });
             img_1.src = assetTabel[i];
         }
@@ -53,7 +55,7 @@ function initAssets() {
                 console.log(assetTabel[i] + ' GOT!');
             });
             adu_1.addEventListener('error', function (ev) {
-                document.write('Game multimedia assets request error.');
+                console.log('Game multimedia assets request error.');
             });
             adu_1.src = assetTabel[i];
         }
@@ -66,7 +68,7 @@ function initAssets() {
                     console.log(assetTabel[i] + ' GOT!');
                 }
                 else {
-                    document.write('failed to reqest config assets.');
+                    console.log('failed to reqest config assets.');
                 }
             });
             confRequire_1.open('get', assetTabel[i]);
@@ -81,7 +83,7 @@ function initAssets() {
                     console.log(assetTabel[i] + ' GOT!');
                 }
                 else {
-                    document.write('Game assets request error');
+                    console.log('Game assets request error');
                 }
             });
             request_1.open('get', assetTabel[i]);

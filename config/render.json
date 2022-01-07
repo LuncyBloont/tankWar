@@ -1,7 +1,7 @@
 {
-    "sunDir": [2.6, -2.5, -5.0],
+    "sunDir": [2.6, -5.5, -5.0],
     "sunColor": [0.999, 0.86, 0.60],
     "envColor": [0.3, 0.5, 0.7],
     "envForce": 1.0,
-    "sunForce": 1.1
+    "sunForce": 0.9
 }

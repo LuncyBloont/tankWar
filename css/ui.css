@@ -8,3 +8,17 @@
     background: #000;
     width: 100%;
 }
+
+#messageBox {
+    width: auto;
+    height: auto;
+    display: inline-block;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: #BACCDD;
+    box-shadow: #333 0px 0px 5px 1px;
+    border-radius: 15px;
+    padding: 9px 14px;
+}

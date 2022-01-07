@@ -35,28 +35,29 @@ void main() {
     float specular = a_s_m.g;
     float metallic = a_s_m.b;
     vec3 ref = -reflect(viewDir, normal);
+    float vr = 0.;//time / 100000.;
     mat3 rot = mat3(
-        cos(-0.6), 0., sin(-0.6),
+        cos(-0.6 - vr), 0., sin(-0.6 - vr),
         0., 1., 0.,
-        -sin(-0.6), 0., cos(-0.6)
+        -sin(-0.6 - vr), 0., cos(-0.6 - vr)
     );
     ref = rot * ref;
-    vec3 skycol = textureLod(skyMap, ref, (1. - specular) * 10. + 4.).rgb;
-    vec3 skydiff = textureLod(skyMap, normal, 14.).rgb;
-    skycol = skycol * 1.4;
-    skydiff = skydiff * 1.4;
+    vec3 skycol = textureLod(skyMap, ref, (1. - specular) * 14. + 1.).rgb;
+    vec3 skydiff = textureLod(skyMap, normal, 15.).rgb;
+    skycol = skycol;
+    skydiff = skydiff;
     vec3 ks = alb * 0.1 + vec3(0.9);
 
     col += alb * skydiff * envForce * 0.99 + skycol * envForce * 0.01;
-    col += alb * sunColor * sunForce * max(0., dot(-sunDir, normal));
-    col += ks * sunColor * sunForce * pow(max(0., dot(ref, -sunDir)), 1. + 256. * pow(specular, 6.)) * (0.8 * specular + 0.2);
-    col += skycol * pow((1. - max(0., dot(viewDir, normal))), 4.);
+    col += alb * sunColor * sunForce * max(0., dot(-sunDir, normal)) * 1.4;
+    col += ks * sunColor * sunForce * pow(max(0., dot(ref, -sunDir)), 1. + 256. * specular) * (specular * 256. + 1.) / 257.;// / pow(0.01, pow(specular, 3.)) * 0.01;// (0.8 * specular) * 0.5;
+    col += skycol * pow((1. - max(0., dot(viewDir, normal))), 4.) * 0.5;
 
     colm *= skycol * envForce + 
-        sunColor * sunForce * pow(max(0., dot(ref, -sunDir)), 1. + 256. * pow(specular, 6.)) * (0.8 * specular + 0.2) + 
-        skycol * pow((1. - max(0., dot(viewDir, normal))), 4.);
+        sunColor * sunForce * pow(max(0., dot(ref, -sunDir)), 1. + 256. * specular) * (specular * 256. + 1.) + 
+        skycol * pow((1. - max(0., dot(viewDir, normal))), 4.) * 0.5;
 
-    if (alphaBase + alphaFnl * (1. - pow(max(0., dot(viewDir, normal)), 5.)) <= noise(vpos.xy / vpos.w)) discard;
+    if (alphaBase + alphaFnl * (1. - pow(max(0., dot(viewDir, normal)), 1.)) <= noise(vpos.xy / vpos.w)) discard;
     color = vec4(mix(col, colm, metallic), 1.);
     color = vec4(color.rgb * texture(ao, uv).r, 1.0);
 }

@@ -1,4 +1,4 @@
-
+/// <reference path="./alert.ts" />
 let assetTabel = {}
 
 let assets = {}
@@ -23,6 +23,7 @@ function readAssetsTable(onloadfunc: Function) {
 function waitAssetLoadDone(func: Function) {
     let wait = setInterval(() => {
         console.log('loading')
+        ialert('Loading...' + Math.round(assetsNow / assetsTask * 100) + '%')
         if (assetsNow == assetsTask) {
             func()
             clearInterval(wait)
@@ -45,7 +46,7 @@ function initAssets() {
                 console.log(assetTabel[i] + ' GOT!')
             })
             img.addEventListener('error', (ev: ErrorEvent) => {
-                document.write('Web multimedia assets request error.')
+                console.log('Web multimedia assets request error.')
             })
             img.src = assetTabel[i]
         }
@@ -57,7 +58,7 @@ function initAssets() {
                 console.log(assetTabel[i] + ' GOT!')
             })
             adu.addEventListener('error', (ev: ErrorEvent) => {
-                document.write('Game multimedia assets request error.')
+                console.log('Game multimedia assets request error.')
             })
             adu.src = assetTabel[i]
         }
@@ -69,7 +70,7 @@ function initAssets() {
                     assetsNow += 1
                     console.log(assetTabel[i] + ' GOT!')
                 } else {
-                    document.write('failed to reqest config assets.')
+                    console.log('failed to reqest config assets.')
                 }
             })
             confRequire.open('get', assetTabel[i])
@@ -83,7 +84,7 @@ function initAssets() {
                     assetsNow += 1
                     console.log(assetTabel[i] + ' GOT!')
                 } else {
-                    document.write('Game assets request error')
+                    console.log('Game assets request error')
                 }
             })
             request.open('get', assetTabel[i])

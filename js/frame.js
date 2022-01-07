@@ -27,7 +27,7 @@ var tank;
                 console.log("Game info:\n    [".concat(data.canvasWidth, "x").concat(data.canvasHeight, "]\n    ").concat(tank.deltaTime, "ms per frame"));
             }
             else {
-                document.write('Failed to read common config.');
+                console.log('Failed to read common config.');
             }
         });
         request.open('get', './config/default.json');
@@ -154,6 +154,7 @@ var tank;
             gl.activeTexture(gl.TEXTURE2);
             gl.bindTexture(gl.TEXTURE_CUBE_MAP, sky);
             gl.uniform1i(gl.getUniformLocation(progSky, 'skyMap'), 2);
+            gl.uniform1f(gl.getUniformLocation(progSky, 'time'), tank.gameTime);
             gl.disable(gl.CULL_FACE);
             gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
             gl.clear(gl.DEPTH_BUFFER_BIT);
@@ -188,7 +189,7 @@ var tank;
             // ------------------
             t += 0.7 * delta;
             var rotateY = glm.mat4(Math.cos(t), 0., Math.sin(t), 0., 0., 1., 0., 0., -Math.sin(t), 0., Math.cos(t), 0., 0., 0., 0., 1.);
-            var rotateX = glm.mat4(1., 0., 0., 0., 0., Math.cos(t / 3.), -Math.sin(t / 3.), 0., 0., Math.sin(t / 3.), Math.cos(t / 3.), 0., 0., 0., 0., 1.);
+            var rotateX = glm.mat4(1., 0., 0., 0., 0., Math.cos(Math.cos(t * 3.) / 4.), -Math.sin(Math.cos(t * 3.) / 4.), 0., 0., Math.sin(Math.cos(t * 3.) / 4.), Math.cos(Math.cos(t * 3.) / 4.), 0., 0., 0., 0., 1.);
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'rotate'), false, rotateY['*'](rotateX).array);
             gl.enable(gl.CULL_FACE);
             gl.drawElements(gl.TRIANGLE_FAN, findex.length, gl.UNSIGNED_INT, 0);

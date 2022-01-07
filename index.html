@@ -8,16 +8,18 @@
     <script src="js/glm-js.min.js"></script>
     <script src="js/frame.js"></script>
     <script src="js/assetLoader.js"></script>
+    <script src="js/alert.js"></script>
 </head>
 
 <body>
+    <div id="messageBox">加载中</div>
     <script>
+        genAlert(document.getElementById('messageBox'))
         cLoadAsset(() => {
             tank.main()
             tank.gameInit()
             tank.startGame()
         })
-
     </script>
 </body>
 

@@ -6,13 +6,13 @@
     "texture_sky3": "/models/sky3.png",
     "texture_sky4": "/models/sky4.png",
     "texture_sky5": "/models/sky5.png",
-    "model_tank": "/models/tank.obj",
+    "model_tank": "/models/docter.obj",
     "shader_tankVert": "/shaders/tank/default.vert",
     "shader_tankFrag": "/shaders/tank/default.frag",
     "shader_skyVert": "/shaders/sky/sky.vert",
     "shader_skyFrag": "/shaders/sky/sky.frag",
-    "texture_tank": "/models/tank.png",
-    "texture_tankAO": "/models/tankAO.png",
-    "texture_tankASM": "/models/tankASM.png",
+    "texture_tank": "/models/kiki.png",
+    "texture_tankAO": "/models/kikiAO.png",
+    "texture_tankASM": "/models/kikiASM.png",
     "texture_tankMask": "/models/white.png"
 }
