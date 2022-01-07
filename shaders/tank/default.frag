@@ -32,7 +32,7 @@ void main() {
     vec3 viewDir = -normalize(fpos);
     float alphaBase = pow(a_s_m.r, 2.);
     float alphaFnl = pow(a_s_m.r, 1.);
-    float specular = a_s_m.g;
+    float specular = pow(a_s_m.g, 6.);
     float metallic = a_s_m.b;
     vec3 ref = -reflect(viewDir, normal);
     float vr = 0.;//time / 100000.;
@@ -42,7 +42,7 @@ void main() {
         -sin(-0.6 - vr), 0., cos(-0.6 - vr)
     );
     ref = rot * ref;
-    vec3 skycol = textureLod(skyMap, ref, (1. - specular) * 14. + 1.).rgb;
+    vec3 skycol = textureLod(skyMap, ref, (1. - a_s_m.g) * 14. + 1.).rgb;
     vec3 skydiff = textureLod(skyMap, normal, 15.).rgb;
     skycol = skycol;
     skydiff = skydiff;
