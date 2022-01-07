@@ -12,7 +12,7 @@ function genAlert(dom: HTMLDivElement) {
     setInterval(() => {
         ialertTime -= 0.1
         if (ialertTime <= ialertLerpTime) {
-            dom.style.opacity = '0.3'
+            dom.style.opacity = '0'
         }
         if (ialertTime <= 0.) {
             ialertTime = 0.
