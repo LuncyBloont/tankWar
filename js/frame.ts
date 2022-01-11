@@ -1,5 +1,6 @@
 /// <reference path="./glm-js.min.d.ts" />
 /// <reference path="./assetLoader.ts" />
+/// <reference path="./renderWorld.ts" />
 
 namespace tank {
     export const displayFuncs: Array<Function> = []
@@ -162,12 +163,12 @@ namespace tank {
 
         const sky = gl.createTexture()
         loadCubeMap(sky, [
-            assets['texture_sky0'],
-            assets['texture_sky1'],
-            assets['texture_sky2'],
-            assets['texture_sky3'],
-            assets['texture_sky4'],
-            assets['texture_sky5']
+            assets['texture_skyb0'],
+            assets['texture_skyb1'],
+            assets['texture_skyb2'],
+            assets['texture_skyb3'],
+            assets['texture_skyb4'],
+            assets['texture_skyb5']
         ], gl)
 
         
@@ -188,6 +189,7 @@ namespace tank {
             gl.bindTexture(gl.TEXTURE_CUBE_MAP, sky)
             gl.uniform1i(gl.getUniformLocation(progSky, 'skyMap'), 2)
             gl.uniform1f(gl.getUniformLocation(progSky, 'time'), gameTime)
+            gl.uniformMatrix4fv(gl.getUniformLocation(progSky, 'viewMatrix'), false, gameWorld.getCameraMatrix().array)
 
             gl.disable(gl.CULL_FACE)
             gl.drawArrays(gl.TRIANGLE_FAN, 0, 4)
@@ -218,7 +220,7 @@ namespace tank {
             // --- light data ---
             const light = assets['config_render']
             let sunDir = glm.vec3(light['sunDir'][0], light['sunDir'][1], light['sunDir'][2])
-            sunDir = glm.normalize(sunDir)
+            sunDir = gameWorld.getCameraMatrix()['*'](glm.vec4(glm.normalize(sunDir), 0.))
             gl.uniform3f(gl.getUniformLocation(prog, 'sunDir'), sunDir.x, sunDir.y, sunDir.z)
             gl.uniform3f(gl.getUniformLocation(prog, 'sunColor'), light['sunColor'][0], light['sunColor'][1], light['sunColor'][2])
             gl.uniform3f(gl.getUniformLocation(prog, 'envColor'), light['envColor'][0], light['envColor'][1], light['envColor'][2])
@@ -227,7 +229,7 @@ namespace tank {
             gl.clearColor(light['envColor'][0] * light['envForce'], light['envColor'][1] * light['envForce'], light['envColor'][2] * light['envForce'], 1.)
             // ------------------
 
-            t += 0.7 * delta
+            t += 0.
 
             const rotateY = glm.mat4(
                 Math.cos(t), 0., Math.sin(t), 0.,
@@ -237,16 +239,17 @@ namespace tank {
             )
             const rotateX = glm.mat4(
                 1., 0., 0., 0.,
-                0., Math.cos(Math.cos(t * 3.) / 4.), -Math.sin(Math.cos(t * 3.) / 4.), 0.,
-                0., Math.sin(Math.cos(t * 3.) / 4.), Math.cos(Math.cos(t * 3.) / 4.), 0.,
+                0., Math.cos(t / 4.), -Math.sin(t / 4.), 0.,
+                0., Math.sin(t / 4.), Math.cos(t / 4.), 0.,
                 0., 0., 0., 1.
             )
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'rotate'), false, rotateY['*'](rotateX).array)
+            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'viewMatrix'), false, gameWorld.getCameraMatrix().array)
 
             gl.enable(gl.CULL_FACE)
             gl.drawElements(gl.TRIANGLE_FAN, findex.length, gl.UNSIGNED_INT, 0)
 
-            gl.flush()
+            // gl.flush()
 
             gl.bindVertexArray(null)
         })
