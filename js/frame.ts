@@ -171,6 +171,7 @@ namespace tank {
             assets['texture_skyb5']
         ], gl)
 
+        gl.bindBuffer(gl.ARRAY_BUFFER, null)
         
         displayFuncs.push((delta: number) => {
             let perspective = glm.perspective(glm.radians(65), canvas.width / canvas.height, 0.01, 1000)
@@ -178,10 +179,15 @@ namespace tank {
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
+            const viewMatrix = gameWorld.getCameraMatrix()
+
+            const light = assets['config_render']
+            let sunDir = glm.vec3(light['sunDir'][0], light['sunDir'][1], light['sunDir'][2])
+            sunDir = viewMatrix['*'](glm.vec4(glm.normalize(sunDir), 0.))
+
             gl.useProgram(progSky)
 
             gl.bindVertexArray(skyvao)
-            gl.bindBuffer(gl.ARRAY_BUFFER, skyvbo)
 
             gl.uniformMatrix4fv(gl.getUniformLocation(progSky, 'inPerspective'), false, glm.inverse(perspective).array)
             gl.uniformMatrix4fv(gl.getUniformLocation(progSky, 'perspective'), false, perspective.array)
@@ -189,7 +195,10 @@ namespace tank {
             gl.bindTexture(gl.TEXTURE_CUBE_MAP, sky)
             gl.uniform1i(gl.getUniformLocation(progSky, 'skyMap'), 2)
             gl.uniform1f(gl.getUniformLocation(progSky, 'time'), gameTime)
-            gl.uniformMatrix4fv(gl.getUniformLocation(progSky, 'viewMatrix'), false, gameWorld.getCameraMatrix().array)
+            gl.uniformMatrix4fv(gl.getUniformLocation(progSky, 'viewMatrix'), false, viewMatrix.array)
+            gl.uniform3f(gl.getUniformLocation(progSky, 'sunDir'), sunDir.x, sunDir.y, sunDir.z)
+            gl.uniform3f(gl.getUniformLocation(progSky, 'sunCol'), light['sunColor'][0], light['sunColor'][1], light['sunColor'][2])
+
 
             gl.disable(gl.CULL_FACE)
             gl.drawArrays(gl.TRIANGLE_FAN, 0, 4)
@@ -199,7 +208,6 @@ namespace tank {
             gl.useProgram(prog)
 
             gl.bindVertexArray(vao)
-            gl.bindBuffer(gl.ARRAY_BUFFER, vbo)
 
             gl.uniform2f(gl.getUniformLocation(prog, 'mpos'), mouseXNoLimit, mouseYNoLimit)
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'perspective'), false, perspective.array)
@@ -218,9 +226,7 @@ namespace tank {
             gl.uniform1f(gl.getUniformLocation(prog, 'time'), gameTime)
 
             // --- light data ---
-            const light = assets['config_render']
-            let sunDir = glm.vec3(light['sunDir'][0], light['sunDir'][1], light['sunDir'][2])
-            sunDir = gameWorld.getCameraMatrix()['*'](glm.vec4(glm.normalize(sunDir), 0.))
+            
             gl.uniform3f(gl.getUniformLocation(prog, 'sunDir'), sunDir.x, sunDir.y, sunDir.z)
             gl.uniform3f(gl.getUniformLocation(prog, 'sunColor'), light['sunColor'][0], light['sunColor'][1], light['sunColor'][2])
             gl.uniform3f(gl.getUniformLocation(prog, 'envColor'), light['envColor'][0], light['envColor'][1], light['envColor'][2])
@@ -244,7 +250,7 @@ namespace tank {
                 0., 0., 0., 1.
             )
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'rotate'), false, rotateY['*'](rotateX).array)
-            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'viewMatrix'), false, gameWorld.getCameraMatrix().array)
+            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'viewMatrix'), false, viewMatrix.array)
 
             gl.enable(gl.CULL_FACE)
             gl.drawElements(gl.TRIANGLE_FAN, findex.length, gl.UNSIGNED_INT, 0)
