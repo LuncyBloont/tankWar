@@ -1,6 +1,7 @@
 /// <reference path="./glm-js.min.d.ts" />
 /// <reference path="./assetLoader.ts" />
 /// <reference path="./renderWorld.ts" />
+/// <reference path="./tbn.ts" />
 
 namespace tank {
     export const displayFuncs: Array<Function> = []
@@ -95,6 +96,7 @@ namespace tank {
         /*      LOAD TEST MODEL     */
         const findex = []
         const model = JSON.parse(assets['model_tank'])
+        genTBN(model)
         for (let fi = 0; fi < model.face.length; fi++) {
             for (let vi = 0; vi < model.face[fi].length; vi++) {
                 findex.push(model.face[fi][vi])
@@ -124,9 +126,13 @@ namespace tank {
         gl.enableVertexAttribArray(gl.getAttribLocation(prog, 'pos'))
         gl.enableVertexAttribArray(gl.getAttribLocation(prog, 'uv'))
         gl.enableVertexAttribArray(gl.getAttribLocation(prog, 'normal'))
-        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'pos'), 3, gl.FLOAT, false, 8 * 4, 0)
-        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'uv'), 2, gl.FLOAT, false, 8 * 4, 3 * 4)
-        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'normal'), 3, gl.FLOAT, false, 8 * 4, 5 * 4)
+        gl.enableVertexAttribArray(gl.getAttribLocation(prog, 'tangent'))
+        gl.enableVertexAttribArray(gl.getAttribLocation(prog, 'bitangent'))
+        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'pos'), 3, gl.FLOAT, false, 14 * 4, 0)
+        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'uv'), 2, gl.FLOAT, false, 14 * 4, 3 * 4)
+        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'normal'), 3, gl.FLOAT, false, 14 * 4, 5 * 4)
+        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'tangent'), 3, gl.FLOAT, false, 14 * 4, 8 * 4)
+        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'bitangent'), 3, gl.FLOAT, false, 14 * 4, 11 * 4)
 
         const eidx = gl.createBuffer()
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, eidx)
@@ -160,6 +166,9 @@ namespace tank {
 
         const asm = gl.createTexture()
         loadTexture(asm, assets['texture_tankASM'], gl)
+
+        const bump = gl.createTexture()
+        loadTexture(bump, assets['texture_normal'], gl)
 
         const sky = gl.createTexture()
         loadCubeMap(sky, [
@@ -223,6 +232,9 @@ namespace tank {
             gl.activeTexture(gl.TEXTURE3)
             gl.bindTexture(gl.TEXTURE_CUBE_MAP, sky)
             gl.uniform1i(gl.getUniformLocation(prog, 'skyMap'), 3)
+            gl.activeTexture(gl.TEXTURE4)
+            gl.bindTexture(gl.TEXTURE_2D, bump)
+            gl.uniform1i(gl.getUniformLocation(prog, 'normalMap'), 4)
             gl.uniform1f(gl.getUniformLocation(prog, 'time'), gameTime)
 
             // --- light data ---

@@ -1,6 +1,7 @@
 /// <reference path="./glm-js.min.d.ts" />
 /// <reference path="./assetLoader.ts" />
 /// <reference path="./renderWorld.ts" />
+/// <reference path="./tbn.ts" />
 var tank;
 (function (tank) {
     tank.displayFuncs = [];
@@ -82,6 +83,7 @@ var tank;
         /*      LOAD TEST MODEL     */
         var findex = [];
         var model = JSON.parse(assets['model_tank']);
+        genTBN(model);
         for (var fi = 0; fi < model.face.length; fi++) {
             for (var vi = 0; vi < model.face[fi].length; vi++) {
                 findex.push(model.face[fi][vi]);
@@ -107,9 +109,13 @@ var tank;
         gl.enableVertexAttribArray(gl.getAttribLocation(prog, 'pos'));
         gl.enableVertexAttribArray(gl.getAttribLocation(prog, 'uv'));
         gl.enableVertexAttribArray(gl.getAttribLocation(prog, 'normal'));
-        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'pos'), 3, gl.FLOAT, false, 8 * 4, 0);
-        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'uv'), 2, gl.FLOAT, false, 8 * 4, 3 * 4);
-        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'normal'), 3, gl.FLOAT, false, 8 * 4, 5 * 4);
+        gl.enableVertexAttribArray(gl.getAttribLocation(prog, 'tangent'));
+        gl.enableVertexAttribArray(gl.getAttribLocation(prog, 'bitangent'));
+        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'pos'), 3, gl.FLOAT, false, 14 * 4, 0);
+        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'uv'), 2, gl.FLOAT, false, 14 * 4, 3 * 4);
+        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'normal'), 3, gl.FLOAT, false, 14 * 4, 5 * 4);
+        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'tangent'), 3, gl.FLOAT, false, 14 * 4, 8 * 4);
+        gl.vertexAttribPointer(gl.getAttribLocation(prog, 'bitangent'), 3, gl.FLOAT, false, 14 * 4, 11 * 4);
         var eidx = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, eidx);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(findex), gl.STATIC_DRAW);
@@ -134,6 +140,8 @@ var tank;
         loadTexture(ao, assets['texture_tankAO'], gl);
         var asm = gl.createTexture();
         loadTexture(asm, assets['texture_tankASM'], gl);
+        var bump = gl.createTexture();
+        loadTexture(bump, assets['texture_normal'], gl);
         var sky = gl.createTexture();
         loadCubeMap(sky, [
             assets['texture_skyb0'],
@@ -182,6 +190,9 @@ var tank;
             gl.activeTexture(gl.TEXTURE3);
             gl.bindTexture(gl.TEXTURE_CUBE_MAP, sky);
             gl.uniform1i(gl.getUniformLocation(prog, 'skyMap'), 3);
+            gl.activeTexture(gl.TEXTURE4);
+            gl.bindTexture(gl.TEXTURE_2D, bump);
+            gl.uniform1i(gl.getUniformLocation(prog, 'normalMap'), 4);
             gl.uniform1f(gl.getUniformLocation(prog, 'time'), tank.gameTime);
             // --- light data ---
             gl.uniform3f(gl.getUniformLocation(prog, 'sunDir'), sunDir.x, sunDir.y, sunDir.z);

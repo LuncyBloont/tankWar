@@ -20,5 +20,6 @@
     "texture_tank": "/models/map0.png",
     "texture_tankAO": "/models/map0AS.png",
     "texture_tankASM": "/models/map0ASM.png",
-    "texture_tankMask": "/models/white.png"
+    "texture_tankMask": "/models/white.png",
+    "texture_normal": "/models/map0Normals.png"
 }
