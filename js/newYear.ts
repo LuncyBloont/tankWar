@@ -88,6 +88,11 @@ class MagicImage extends GameObject {
         this.position = glm.vec3(4., 0., 10.)
         this.network.massage = new TransBase()
         this.network.owner = player.playerID
+        this.model = 'model_netFace'
+        this.texture = 'texture_face0'
+        this.textureASM = 'texture_face0ASM'
+        this.textureAS = 'texture_face0AS'
+        this.textureNormals = 'texture_face0Normals'
         this.perLogic = function (self: MagicImage, delta: number) {
             let diff = gameWorld.camera.position['+'](glm.vec3(0., -0.8, 0.))['-'](self.position)
             let diffLen = glm.length(diff)
