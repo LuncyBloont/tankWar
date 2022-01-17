@@ -18,6 +18,7 @@ mkdir tmp/js
 mkdir tmp/server
 cp -r ./config tmp/
 cp -r ./css tmp/
+cp -r ./otherTex tmp/
 cp -r ./js/*.js tmp/js/
 cp -r ./models tmp/
 cp -r ./server/*.js tmp/server/

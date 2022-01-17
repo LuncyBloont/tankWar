@@ -16,6 +16,7 @@ class GameObject {
     textureNormals: string = 'texture_kikiNormals'
     textureEmission: string = 'texture_black'
     shaderProgram: WebGLProgram = null
+    shadow: boolean = true
     perFrame: Function = function (self: GameObject, gl: WebGL2RenderingContext, delta: number, shadow: boolean) { }
     perLogic: Function = function (self: GameObject, delta: number) {
         self.rotation.y += delta * 0.008
@@ -177,7 +178,7 @@ namespace gameWorld {
         shadowMat: any, shadowMap: WebGLTexture) {
         for (let i in Objects) {
             let gobj = Objects[i]
-            if (!gobj.active || !gobj.show) continue
+            if (!gobj.active || !gobj.show || (shadow && !gobj.shadow)) continue
             let prog = program ? program : gobj.shaderProgram
             gl.useProgram(prog)
             gl.bindVertexArray(gobj.vao)

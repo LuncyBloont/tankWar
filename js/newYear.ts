@@ -215,6 +215,7 @@ class NameBoard extends GameObject {
         gl.linkProgram(textProg)
         console.log(gl.getProgramInfoLog(textProg))
         this.shaderProgram = textProg
+        this.shadow = false
 
         this.perLogic = (self: NameBoard, delta: number) => {
             self.position = this.target.position['+'](glm.vec3(0., 2., 0.))

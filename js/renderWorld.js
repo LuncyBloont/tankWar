@@ -16,6 +16,7 @@ var GameObject = /** @class */ (function () {
         this.textureNormals = 'texture_kikiNormals';
         this.textureEmission = 'texture_black';
         this.shaderProgram = null;
+        this.shadow = true;
         this.perFrame = function (self, gl, delta, shadow) { };
         this.perLogic = function (self, delta) {
             self.rotation.y += delta * 0.008;
@@ -136,7 +137,7 @@ var gameWorld;
     function renderObjects(gl, delta, sky, time, light, viewMat, perspective, program, shadow, shadowMat, shadowMap) {
         for (var i in gameWorld.Objects) {
             var gobj = gameWorld.Objects[i];
-            if (!gobj.active || !gobj.show)
+            if (!gobj.active || !gobj.show || (shadow && !gobj.shadow))
                 continue;
             var prog = program ? program : gobj.shaderProgram;
             gl.useProgram(prog);

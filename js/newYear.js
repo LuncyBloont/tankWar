@@ -192,6 +192,7 @@ var NameBoard = /** @class */ (function (_super) {
         gl.linkProgram(textProg);
         console.log(gl.getProgramInfoLog(textProg));
         _this.shaderProgram = textProg;
+        _this.shadow = false;
         _this.perLogic = function (self, delta) {
             self.position = _this.target.position['+'](glm.vec3(0., 2., 0.));
             var diff = gameWorld.camera.position['+'](glm.vec3(0., -0.8, 0.))['-'](self.position);
