@@ -9,7 +9,7 @@ var player;
         var ui = document.createElement('div');
         ui.className = 'centerTips ui';
         ui.style.background = '#ACB1AF';
-        ui.innerHTML = '输入你的昵称：';
+        ui.innerHTML = '输入你的昵称（仅限字母和数字）：';
         var input = document.createElement('input');
         ui.appendChild(input);
         var submit = document.createElement('button');
@@ -17,7 +17,7 @@ var player;
         ui.appendChild(submit);
         submit.addEventListener('click', function (ev) {
             var s = input.value;
-            var name = '没有名字的人';
+            var name = 'unknown' + Math.floor(Math.random() * 100000.);
             for (var i = 0; i < s.length; i++) {
                 if (s.charAt(i) != ' ') {
                     name = s;

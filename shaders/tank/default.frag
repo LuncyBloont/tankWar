@@ -24,6 +24,7 @@ uniform sampler2D tasm;
 uniform samplerCube skyMap;
 uniform sampler2D normalMap;
 uniform sampler2D shadowMap;
+uniform sampler2D emission;
 
 uniform vec3 sunDir;
 uniform vec3 sunColor;
@@ -110,5 +111,6 @@ void main()
 
     if (alphaBase + alphaFnl * (1. - pow(max(0., dot(viewDir, normal)), 1.)) <= noise(vpos.xy / vpos.w)) discard;
     color = vec4(mix(col, colm, metallic), 1.);
-    color = vec4(color.rgb * aocol.r, 1.0);
+    vec4 ems = texture(emission, uv);
+    color = vec4(color.rgb * aocol.r + alb * aocol.b * 5. + ems.rgb * ems.a * 5., 1.0);
 }

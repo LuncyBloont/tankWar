@@ -8,6 +8,8 @@ var tank;
     tank.displayFuncs = [];
     tank.deltaTime = 60;
     tank.gameTime = 0;
+    tank.gameGL = null;
+    tank.commonProgram = null;
     function main() {
         tank.canvas = document.createElement('canvas');
         tank.canvas.className = 'gameCanvas';
@@ -42,7 +44,6 @@ var tank;
         var sdr = gl.createShader(type);
         gl.shaderSource(sdr, code);
         gl.compileShader(sdr);
-        console.log(gl.getShaderInfoLog(sdr));
         return sdr;
     }
     function loadTexture(texture, image, gl) {
@@ -87,6 +88,7 @@ var tank;
         tank.mouseXNoLimit = 0;
         tank.mouseYNoLimit = 0;
         var gl = tank.canvas.getContext('webgl2');
+        tank.gameGL = gl;
         gl.enable(gl.DEPTH_TEST);
         gl.clearColor(0.1, 0.2, 0.3, 1.);
         var mouse = [
@@ -110,6 +112,7 @@ var tank;
         gl.attachShader(prog, loadShader(gl, assets['shader_tankFrag'], gl.FRAGMENT_SHADER));
         gl.linkProgram(prog);
         console.log(gl.getProgramInfoLog(prog));
+        tank.commonProgram = prog;
         var shadowP = gl.createProgram();
         gl.attachShader(shadowP, loadShader(gl, assets['shader_shadowVert'], gl.VERTEX_SHADER));
         gl.attachShader(shadowP, loadShader(gl, assets['shader_shadowFrag'], gl.FRAGMENT_SHADER));
@@ -161,6 +164,8 @@ var tank;
         loadTexture(asm, assets['texture_tankASM'], gl);
         var bump = gl.createTexture();
         loadTexture(bump, assets['texture_normal'], gl);
+        var emission = gl.createTexture();
+        loadTexture(emission, assets['texture_black'], gl);
         var sky = gl.createTexture();
         loadCubeMap(sky, [
             assets['texture_skyb0'],
@@ -184,7 +189,6 @@ var tank;
         gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH24_STENCIL8, shadowSize, shadowSize);
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, shadowRBuffer);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gameWorld.prepareObjexts(gl, prog);
         tank.displayFuncs.push(function (delta) {
             var perspective = glm.perspective(glm.radians(65), tank.canvas.width / tank.canvas.height, 0.01, 1000);
             gl.viewport(0, 0, tank.canvas.width, tank.canvas.height);
@@ -236,6 +240,9 @@ var tank;
             gl.activeTexture(gl.TEXTURE5);
             gl.bindTexture(gl.TEXTURE_2D, shadowTex);
             gl.uniform1i(gl.getUniformLocation(prog, 'shadowMap'), 5);
+            gl.activeTexture(gl.TEXTURE6);
+            gl.bindTexture(gl.TEXTURE_2D, emission);
+            gl.uniform1i(gl.getUniformLocation(prog, 'emission'), 6);
             gl.uniform1f(gl.getUniformLocation(prog, 'time'), tank.gameTime);
             // --- light data ---
             gl.uniform3f(gl.getUniformLocation(prog, 'sunDir'), sunDir.x, sunDir.y, sunDir.z);
@@ -258,6 +265,7 @@ var tank;
     }
     tank.gameInit = gameInit;
     function startGame() {
+        gameWorld.prepareObjexts(tank.gameGL, tank.commonProgram);
         var lastTime = 0;
         var update = function (time) {
             tank.gameTime = time;

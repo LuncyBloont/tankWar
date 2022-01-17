@@ -4,6 +4,7 @@
 
 class GameObject {
     active: boolean = true
+    show: boolean = true
     name: string = 'default'
     position: any = glm.vec3(1., 2., 0.)
     rotation: any = glm.vec3(0., 0., 0.)
@@ -13,8 +14,9 @@ class GameObject {
     textureASM: string = 'texture_kikiASM'
     textureAS: string = 'texture_kikiAS'
     textureNormals: string = 'texture_kikiNormals'
+    textureEmission: string = 'texture_black'
     shaderProgram: WebGLProgram = null
-    perFrame: Function = function (self: GameObject, gl: WebGL2RenderingContext, delta: number) { }
+    perFrame: Function = function (self: GameObject, gl: WebGL2RenderingContext, delta: number, shadow: boolean) { }
     perLogic: Function = function (self: GameObject, delta: number) {
         self.rotation.y += delta * 0.008
     }
@@ -25,6 +27,7 @@ class GameObject {
     idOfASTexture: WebGLTexture
     idOfASMTexture: WebGLTexture
     idOfNormalsMap: WebGLTexture
+    idOfEmissionTexture: WebGLTexture
     findex: Array<number>
 }
 
@@ -98,61 +101,74 @@ namespace gameWorld {
         ))
     }
 
+    export function perpareOne(gl: WebGL2RenderingContext, program: WebGLProgram, gobj: GameObject) {
+        const model = JSON.parse(assets[gobj.model])
+        genTBN(model)
+        console.log(`G Object ${gobj.name} use ${gobj.shaderProgram ? 'special' : 'common'} program.`)
+        gobj.shaderProgram = gobj.shaderProgram ? gobj.shaderProgram : program
+        gobj.vao = gl.createVertexArray()
+        gobj.idOfTexture = gl.createTexture()
+        gobj.idOfASTexture = gl.createTexture()
+        gobj.idOfASMTexture = gl.createTexture()
+        gobj.idOfNormalsMap = gl.createTexture()
+        gobj.idOfEmissionTexture = gl.createTexture()
+
+        gl.bindVertexArray(gobj.vao)
+        const vbo = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo)
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(model.vertex), gl.STATIC_DRAW)
+        gobj.findex = []
+        for (let fi = 0; fi < model.face.length; fi++) {
+            for (let vi = 0; vi < model.face[fi].length; vi++) {
+                gobj.findex.push(model.face[fi][vi])
+            }
+            gobj.findex.push(Math.pow(2, 32) - 1)
+        }
+        gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'pos'))
+        gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'pos'), 3, gl.FLOAT, false, 14 * 4, 0)
+        if (gl.getAttribLocation(gobj.shaderProgram, 'uv') != -1) {
+            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'uv'))
+            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'uv'), 2, gl.FLOAT, false, 14 * 4, 3 * 4)
+        }
+        if (gl.getAttribLocation(gobj.shaderProgram, 'normal') != -1) {
+            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'normal'))
+            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'normal'), 3, gl.FLOAT, true, 14 * 4, 5 * 4)
+        }
+        if (gl.getAttribLocation(gobj.shaderProgram, 'tangent') != -1) {
+            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'tangent'))
+            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'tangent'), 3, gl.FLOAT, true, 14 * 4, 8 * 4)
+        }
+        if (gl.getAttribLocation(gobj.shaderProgram, 'bitangent') != -1) {
+            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'bitangent'))
+            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'bitangent'), 3, gl.FLOAT, true, 14 * 4, 11 * 4)
+        }
+
+        const ebo = gl.createBuffer()
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(gobj.findex), gl.STATIC_DRAW)
+        gl.bindVertexArray(null)
+
+        const linkTexture = function (texName: string, id: WebGLTexture) {
+            gl.bindTexture(gl.TEXTURE_2D, id)
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, assets[texName])
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+            gl.generateMipmap(gl.TEXTURE_2D)
+        }
+
+        linkTexture(gobj.texture, gobj.idOfTexture)
+        linkTexture(gobj.textureAS, gobj.idOfASTexture)
+        linkTexture(gobj.textureASM, gobj.idOfASMTexture)
+        linkTexture(gobj.textureNormals, gobj.idOfNormalsMap)
+        linkTexture(gobj.textureEmission, gobj.idOfEmissionTexture)
+
+        gobj.preGame(gobj, gl)
+    }
+
     export function prepareObjexts(gl: WebGL2RenderingContext, program: WebGLProgram) {
         for (let i in Objects) {
             const gobj = Objects[i]
-            console.log(gobj)
-            const model = JSON.parse(assets[gobj.model])
-            genTBN(model)
-
-            gobj.shaderProgram = gobj.shaderProgram ? gobj.shaderProgram : program
-
-            gobj.vao = gl.createVertexArray()
-            gobj.idOfTexture = gl.createTexture()
-            gobj.idOfASTexture = gl.createTexture()
-            gobj.idOfASMTexture = gl.createTexture()
-            gobj.idOfNormalsMap = gl.createTexture()
-
-            gl.bindVertexArray(gobj.vao)
-            const vbo = gl.createBuffer()
-            gl.bindBuffer(gl.ARRAY_BUFFER, vbo)
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(model.vertex), gl.STATIC_DRAW)
-            gobj.findex = []
-            for (let fi = 0; fi < model.face.length; fi++) {
-                for (let vi = 0; vi < model.face[fi].length; vi++) {
-                    gobj.findex.push(model.face[fi][vi])
-                }
-                gobj.findex.push(Math.pow(2, 32) - 1)
-            }
-            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'pos'))
-            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'uv'))
-            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'normal'))
-            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'tangent'))
-            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'bitangent'))
-            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'pos'), 3, gl.FLOAT, false, 14 * 4, 0)
-            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'uv'), 2, gl.FLOAT, false, 14 * 4, 3 * 4)
-            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'normal'), 3, gl.FLOAT, true, 14 * 4, 5 * 4)
-            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'tangent'), 3, gl.FLOAT, true, 14 * 4, 8 * 4)
-            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'bitangent'), 3, gl.FLOAT, true, 14 * 4, 11 * 4)
-            const ebo = gl.createBuffer()
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
-            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(gobj.findex), gl.STATIC_DRAW)
-            gl.bindVertexArray(null)
-
-            const linkTexture = function (texName: string, id: WebGLTexture) {
-                gl.bindTexture(gl.TEXTURE_2D, id)
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, assets[texName])
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-                gl.generateMipmap(gl.TEXTURE_2D)
-            }
-
-            linkTexture(gobj.texture, gobj.idOfTexture)
-            linkTexture(gobj.textureAS, gobj.idOfASTexture)
-            linkTexture(gobj.textureASM, gobj.idOfASMTexture)
-            linkTexture(gobj.textureNormals, gobj.idOfNormalsMap)
-
-            gobj.preGame(gobj, gl)
+            perpareOne(gl, program, gobj)
         }
     }
 
@@ -161,7 +177,7 @@ namespace gameWorld {
         shadowMat: any, shadowMap: WebGLTexture) {
         for (let i in Objects) {
             let gobj = Objects[i]
-            if (!gobj.active) continue
+            if (!gobj.active || !gobj.show) continue
             let prog = program ? program : gobj.shaderProgram
             gl.useProgram(prog)
             gl.bindVertexArray(gobj.vao)
@@ -184,6 +200,9 @@ namespace gameWorld {
                 gl.activeTexture(gl.TEXTURE5)
                 gl.bindTexture(gl.TEXTURE_2D, shadowMap)
                 gl.uniform1i(gl.getUniformLocation(prog, 'shadowMap'), 5)
+                gl.activeTexture(gl.TEXTURE6)
+                gl.bindTexture(gl.TEXTURE_2D, gobj.idOfEmissionTexture)
+                gl.uniform1i(gl.getUniformLocation(prog, 'emission'), 6)
 
                 gl.uniform1f(gl.getUniformLocation(prog, 'time'), time)
                 gl.uniform1f(gl.getUniformLocation(prog, 'sunForce'), light['sunForce'])
@@ -223,19 +242,24 @@ namespace gameWorld {
                 0., 0., 0., 1.
             ))
 
-            if (perspective) {
+            if (perspective && gl.getUniformLocation(prog, 'perspective') != -1) {
                 gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'perspective'), false, perspective.array)
             }
-            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'rotate'), false, trans.array)
-            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'inRotate'), false, glm.inverse(trans).array)
-            if (viewMat) {
+            if (gl.getUniformLocation(prog, 'rotate') != -1) {
+                gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'rotate'), false, trans.array)
+            }
+            if (gl.getUniformLocation(prog, 'inRotate') != -1)
+            {
+                gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'inRotate'), false, glm.inverse(trans).array)
+            }
+            if (viewMat && gl.getUniformLocation(prog, 'viewMatrix') != -1) {
                 gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'viewMatrix'), false, viewMat.array)
             }
-            if (shadowMat) {
+            if (shadowMat && gl.getUniformLocation(prog, 'perspectiveShadow') != -1) {
                 gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'perspectiveShadow'), false, shadowMat.array)
             }
 
-            gobj.perFrame(gobj, gl, delta)
+            gobj.perFrame(gobj, gl, delta, shadow)
             gl.drawElements(gl.TRIANGLE_FAN, gobj.findex.length, gl.UNSIGNED_INT, 0)
         }
     }

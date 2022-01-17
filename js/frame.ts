@@ -12,6 +12,9 @@ namespace tank {
 
     export let gameTime = 0
 
+    export let gameGL: WebGL2RenderingContext = null
+    export let commonProgram: WebGLProgram = null
+
     export function main(): boolean {
         canvas = document.createElement('canvas')
         canvas.className = 'gameCanvas'
@@ -47,7 +50,6 @@ namespace tank {
         const sdr = gl.createShader(type)
         gl.shaderSource(sdr, code)
         gl.compileShader(sdr)
-        console.log(gl.getShaderInfoLog(sdr))
         return sdr
     }
 
@@ -104,6 +106,7 @@ namespace tank {
         mouseXNoLimit = 0
         mouseYNoLimit = 0
         const gl = canvas.getContext('webgl2')
+        gameGL = gl
         gl.enable(gl.DEPTH_TEST)
         gl.clearColor(0.1, 0.2, 0.3, 1.)
 
@@ -130,6 +133,7 @@ namespace tank {
         gl.attachShader(prog, loadShader(gl, assets['shader_tankFrag'], gl.FRAGMENT_SHADER))
         gl.linkProgram(prog)
         console.log(gl.getProgramInfoLog(prog))
+        commonProgram = prog
 
         const shadowP = gl.createProgram()
         gl.attachShader(shadowP, loadShader(gl, assets['shader_shadowVert'], gl.VERTEX_SHADER))
@@ -196,6 +200,9 @@ namespace tank {
         const bump = gl.createTexture()
         loadTexture(bump, assets['texture_normal'], gl)
 
+        const emission = gl.createTexture()
+        loadTexture(emission, assets['texture_black'], gl)
+
         const sky = gl.createTexture()
         loadCubeMap(sky, [
             assets['texture_skyb0'],
@@ -221,8 +228,6 @@ namespace tank {
         gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH24_STENCIL8, shadowSize, shadowSize)
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, shadowRBuffer)
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-
-        gameWorld.prepareObjexts(gl, prog)
 
         displayFuncs.push((delta: number) => {
             let perspective = glm.perspective(glm.radians(65), canvas.width / canvas.height, 0.01, 1000)
@@ -302,6 +307,9 @@ namespace tank {
             gl.activeTexture(gl.TEXTURE5)
             gl.bindTexture(gl.TEXTURE_2D, shadowTex)
             gl.uniform1i(gl.getUniformLocation(prog, 'shadowMap'), 5)
+            gl.activeTexture(gl.TEXTURE6)
+            gl.bindTexture(gl.TEXTURE_2D, emission)
+            gl.uniform1i(gl.getUniformLocation(prog, 'emission'), 6)
 
             gl.uniform1f(gl.getUniformLocation(prog, 'time'), gameTime)
 
@@ -334,6 +342,7 @@ namespace tank {
     }
 
     export function startGame() {
+        gameWorld.prepareObjexts(gameGL, commonProgram)
         let lastTime = 0
         let update = (time: number) => {
             gameTime = time

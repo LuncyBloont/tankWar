@@ -46,6 +46,7 @@ var MagicImage = /** @class */ (function (_super) {
         _this.textureASM = 'texture_face0ASM';
         _this.textureAS = 'texture_face0AS';
         _this.textureNormals = 'texture_face0Normals';
+        _this.show = false;
         _this.perLogic = function (self, delta) {
             var diff = gameWorld.camera.position['+'](glm.vec3(0., -0.8, 0.))['-'](self.position);
             var diffLen = glm.length(diff);
@@ -64,6 +65,12 @@ var MagicImage = /** @class */ (function (_super) {
                 self.timeToPost = 125.;
                 self.sendStatus();
             }
+            if (Math.random() > 1.0 - 1.0 / 5000) {
+                self.show = true;
+            }
+            if (Math.random() > 1.0 - 1.0 / 15) {
+                self.show = false;
+            }
         };
         return _this;
     }
@@ -79,10 +86,7 @@ var MagicImage = /** @class */ (function (_super) {
             gameWorld.camera.front.y,
             gameWorld.camera.front.z
         ];
-        this.network.massage.n = this.network.owner.substring(0, this.network.owner.indexOf('>>$<<'));
-        if (this.network.massage.n.length == 0) {
-            this.network.massage.n = '没名字的人';
-        }
+        this.network.massage.n = this.network.owner;
         this.network.post(function (s) {
             _this.renderObj(JSON.parse(s));
         });
@@ -109,6 +113,7 @@ var MagicImage = /** @class */ (function (_super) {
                 localOne.netPosition = glm.vec3(netOne.p[0], netOne.p[1], netOne.p[2]);
                 localOne.name = netOne.n;
                 localOne.netFront = glm.vec3(netOne.r[0], netOne.r[1], netOne.r[2]);
+                localOne.nameBoard.active = true;
             }
             else {
                 var newOne = getFromLocal('');
@@ -117,6 +122,8 @@ var MagicImage = /** @class */ (function (_super) {
                 newOne.netFront = glm.vec3(netOne.r[0], netOne.r[1], netOne.r[2]);
                 newOne.active = true;
                 newOne.mark = true;
+                newOne.nameBoard.active = true;
+                newOne.nameBoard.refreshNameText();
                 console.log("".concat(newOne.name, "\u52A0\u5165\u6E38\u620F"));
             }
         }
@@ -124,6 +131,7 @@ var MagicImage = /** @class */ (function (_super) {
             if (!this.playerObjPool[i].mark) {
                 this.playerObjPool[i].name = '';
                 this.playerObjPool[i].active = false;
+                this.playerObjPool[i].nameBoard.active = false;
             }
         }
     };
@@ -134,10 +142,19 @@ var OtherPlayer = /** @class */ (function (_super) {
     function OtherPlayer() {
         var _this = _super.call(this) || this;
         _this.netPosition = glm.vec3(0., 3., 0.);
-        _this.netFront = glm.vec3(0., 0., 1.);
-        _this.front = glm.vec3(0., 0., 1.);
+        _this.netFront = glm.vec3(0., 0., -1.);
+        _this.front = glm.vec3(0., 0., -1.);
+        _this.nameBoard = null;
         _this.active = false;
         _this.name = '';
+        _this.model = 'model_player0';
+        _this.texture = 'texture_player0';
+        _this.textureASM = 'texture_player0ASM';
+        _this.textureAS = 'texture_player0AS';
+        _this.textureNormals = 'texture_player0Normals';
+        _this.textureEmission = 'texture_player0Emission';
+        _this.scale = glm.vec3(2., 2., 2.);
+        var t = 0;
         _this.perLogic = function (self, delta) {
             var lerp = function (a, b, c) {
                 return a['*'](1 - c)['+'](b['*'](c));
@@ -153,14 +170,88 @@ var OtherPlayer = /** @class */ (function (_super) {
     }
     return OtherPlayer;
 }(GameObject));
+var NameBoard = /** @class */ (function (_super) {
+    __extends(NameBoard, _super);
+    function NameBoard() {
+        var _this = _super.call(this) || this;
+        _this.target = null;
+        _this.ts = [];
+        _this.model = 'model_text';
+        _this.texture = 'texture_abc';
+        _this.scale = glm.vec3(0.6, 1., 1.);
+        var gl = tank.gameGL;
+        var textProg = gl.createProgram();
+        var vsdr = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vsdr, assets['shader_textVert']);
+        gl.compileShader(vsdr);
+        gl.attachShader(textProg, vsdr);
+        var fsdr = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fsdr, assets['shader_textFrag']);
+        gl.compileShader(fsdr);
+        gl.attachShader(textProg, fsdr);
+        gl.linkProgram(textProg);
+        console.log(gl.getProgramInfoLog(textProg));
+        _this.shaderProgram = textProg;
+        _this.perLogic = function (self, delta) {
+            self.position = _this.target.position['+'](glm.vec3(0., 2., 0.));
+            var diff = gameWorld.camera.position['+'](glm.vec3(0., -0.8, 0.))['-'](self.position);
+            self.rotation.y = Math.atan2(-diff.x, -diff.z);
+        };
+        _this.perFrame = function (self, ngl, delta, shadow) {
+            if (!shadow) {
+                ngl.uniform1iv(ngl.getUniformLocation(textProg, 'text'), new Int32Array(self.ts));
+            }
+        };
+        return _this;
+    }
+    NameBoard.prototype.refreshNameText = function () {
+        var l = 0;
+        var n = this.target.name.substring(0, this.target.name.indexOf('>>$<<'));
+        var r = 8;
+        if (n.length == 0) {
+            n = '没有名字的人';
+        }
+        if (n.length < 8) {
+            l = Math.floor((8 - n.length) / 2);
+            r = l + n.length;
+        }
+        this.ts = [];
+        for (var i = 0; i < 8; i++) {
+            this.ts.push(-1);
+            if (i >= l && i < r) {
+                var c = n.charAt(i - l).charCodeAt(0);
+                console.log(c + '  ' + n);
+                var idxa = 'a'.charCodeAt(0);
+                var idxz = 'z'.charCodeAt(0);
+                var idxA = 'A'.charCodeAt(0);
+                var idxZ = 'Z'.charCodeAt(0);
+                var idx0 = '0'.charCodeAt(0);
+                var idx9 = '9'.charCodeAt(0);
+                var idx = 36;
+                if (c >= idxa && c <= idxz)
+                    idx = c - idxa;
+                if (c >= idxA && c <= idxZ)
+                    idx = c - idxA;
+                if (c >= idx0 && c <= idx9)
+                    idx = c - idx0;
+                this.ts[i] = idx;
+            }
+        }
+    };
+    return NameBoard;
+}(GameObject));
 function gameConfig1() {
     var tmp = new MagicImage();
     gameWorld.Objects.push(tmp);
     var oplist = [];
     for (var i = 0; i < 16; i++) {
         var op = new OtherPlayer();
+        var nb = new NameBoard();
+        nb.target = op;
+        op.nameBoard = nb;
         oplist.push(op);
         gameWorld.Objects.push(op);
+        gameWorld.Objects.push(nb);
     }
     tmp.playerObjPool = oplist;
 }

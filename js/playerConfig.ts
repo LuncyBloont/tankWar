@@ -8,7 +8,7 @@ namespace player {
         let ui = document.createElement('div')
         ui.className = 'centerTips ui'
         ui.style.background = '#ACB1AF'
-        ui.innerHTML = '输入你的昵称：'
+        ui.innerHTML = '输入你的昵称（仅限字母和数字）：'
         let input = document.createElement('input')
         ui.appendChild(input)
         let submit = document.createElement('button')
@@ -16,7 +16,7 @@ namespace player {
         ui.appendChild(submit)
         submit.addEventListener('click', (ev: MouseEvent) => {
             let s = input.value
-            let name = '没有名字的人'
+            let name = 'unknown' + Math.floor(Math.random() * 100000.)
             for (let i = 0; i < s.length; i++) {
                 if (s.charAt(i) != ' ') {
                     name = s
