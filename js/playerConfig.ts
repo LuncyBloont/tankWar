@@ -8,7 +8,7 @@ namespace player {
         let ui = document.createElement('div')
         ui.className = 'centerTips ui'
         ui.style.background = '#ACB1AF'
-        ui.innerHTML = '输入你的昵称（仅限字母和数字）：'
+        ui.innerHTML = '输入你的昵称（仅限字母和数字）：<br />'
         let input = document.createElement('input')
         ui.appendChild(input)
         let submit = document.createElement('button')

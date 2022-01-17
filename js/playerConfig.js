@@ -9,7 +9,7 @@ var player;
         var ui = document.createElement('div');
         ui.className = 'centerTips ui';
         ui.style.background = '#ACB1AF';
-        ui.innerHTML = '输入你的昵称（仅限字母和数字）：';
+        ui.innerHTML = '输入你的昵称（仅限字母和数字）：<br />';
         var input = document.createElement('input');
         ui.appendChild(input);
         var submit = document.createElement('button');
