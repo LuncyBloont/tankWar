@@ -233,7 +233,7 @@ var NameBoard = /** @class */ (function (_super) {
                 if (c >= idxA && c <= idxZ)
                     idx = c - idxA;
                 if (c >= idx0 && c <= idx9)
-                    idx = c - idx0;
+                    idx = c - idx0 + 26;
                 this.ts[i] = idx;
             }
         }

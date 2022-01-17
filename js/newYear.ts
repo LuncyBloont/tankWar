@@ -191,7 +191,7 @@ class NameBoard extends GameObject {
                 let idx = 36
                 if (c >= idxa && c <= idxz) idx = c - idxa
                 if (c >= idxA && c <= idxZ) idx = c - idxA
-                if (c >= idx0 && c <= idx9) idx = c - idx0
+                if (c >= idx0 && c <= idx9) idx = c - idx0 + 26
                 this.ts[i] = idx
             }
         }
