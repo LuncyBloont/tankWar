@@ -4,6 +4,7 @@
 /// <reference path="./tbn.ts" />
 
 namespace tank {
+    const shadowSize = 1024
     export const displayFuncs: Array<Function> = []
     export let deltaTime: number = 60
     export let canvas: HTMLCanvasElement
@@ -36,7 +37,7 @@ namespace tank {
                 console.log('Failed to read common config.')
             }
         })
-        request.open('get', './config/default.json')
+        request.open('GET', './config/default.json')
         request.send(null)
 
         return true
@@ -78,6 +79,25 @@ namespace tank {
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null)
     }
 
+    function renderShadow(gl: WebGL2RenderingContext, shadowP: WebGLProgram, light: any, 
+        mapvao: WebGLVertexArrayObject, mapIndex: Array<number>, delta: number, mapRotate: any, shadowMat: any, frame: WebGLFramebuffer) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, frame)
+        gl.clearColor(1., 0., 0., 1.)
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT)
+        gl.viewport(0, 0, shadowSize, shadowSize)
+        gl.useProgram(shadowP)
+
+        gl.bindVertexArray(mapvao)
+
+        gl.uniformMatrix4fv(gl.getUniformLocation(shadowP, 'perspectiveShadow'), false, shadowMat.array)
+        gl.uniformMatrix4fv(gl.getUniformLocation(shadowP, 'rotate'), false, mapRotate.array)
+
+        gl.drawElements(gl.TRIANGLE_FAN, mapIndex.length, gl.UNSIGNED_INT, 0)
+
+        gameWorld.renderObjects(gl, delta, null, gameTime, light, null, null, shadowP, true, null, null)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    }
+
     export function gameInit() {
         let t = 0
 
@@ -110,6 +130,12 @@ namespace tank {
         gl.attachShader(prog, loadShader(gl, assets['shader_tankFrag'], gl.FRAGMENT_SHADER))
         gl.linkProgram(prog)
         console.log(gl.getProgramInfoLog(prog))
+
+        const shadowP = gl.createProgram()
+        gl.attachShader(shadowP, loadShader(gl, assets['shader_shadowVert'], gl.VERTEX_SHADER))
+        gl.attachShader(shadowP, loadShader(gl, assets['shader_shadowFrag'], gl.FRAGMENT_SHADER))
+        gl.linkProgram(shadowP)
+        console.log(gl.getProgramInfoLog(shadowP))
 
         const progSky = gl.createProgram()
         gl.attachShader(progSky, loadShader(gl, assets['shader_skyVert'], gl.VERTEX_SHADER))
@@ -181,16 +207,32 @@ namespace tank {
         ], gl)
 
         gl.bindBuffer(gl.ARRAY_BUFFER, null)
-        
+
+        const shadowBuffer = gl.createFramebuffer()
+        gl.bindFramebuffer(gl.FRAMEBUFFER, shadowBuffer)
+        const shadowTex = gl.createTexture()
+        gl.bindTexture(gl.TEXTURE_2D, shadowTex)
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, shadowSize, shadowSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, shadowTex, 0)
+        const shadowRBuffer = gl.createRenderbuffer()
+        gl.bindRenderbuffer(gl.RENDERBUFFER, shadowRBuffer)
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH24_STENCIL8, shadowSize, shadowSize)
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, shadowRBuffer)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+
+        gameWorld.prepareObjexts(gl, prog)
+
         displayFuncs.push((delta: number) => {
             let perspective = glm.perspective(glm.radians(65), canvas.width / canvas.height, 0.01, 1000)
             gl.viewport(0, 0, canvas.width, canvas.height)
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-            const viewMatrix = gameWorld.getCameraMatrix()
+            let viewMatrix = gameWorld.getCameraMatrix()
 
-            const light = assets['config_render']
+            let light = assets['config_render']
             let sunDir = glm.vec3(light['sunDir'][0], light['sunDir'][1], light['sunDir'][2])
             sunDir = viewMatrix['*'](glm.vec4(glm.normalize(sunDir), 0.))
 
@@ -207,25 +249,47 @@ namespace tank {
             gl.uniformMatrix4fv(gl.getUniformLocation(progSky, 'viewMatrix'), false, viewMatrix.array)
             gl.uniform3f(gl.getUniformLocation(progSky, 'sunDir'), sunDir.x, sunDir.y, sunDir.z)
             gl.uniform3f(gl.getUniformLocation(progSky, 'sunCol'), light['sunColor'][0], light['sunColor'][1], light['sunColor'][2])
-
+            gl.uniform3f(gl.getUniformLocation(progSky, 'envCol'), light['envColor'][0], light['envColor'][1], light['envColor'][2])
+            gl.uniform1f(gl.getUniformLocation(progSky, 'sunForce'), light['sunForce'])
+            gl.uniform1f(gl.getUniformLocation(progSky, 'envForce'), light['envForce'])
 
             gl.disable(gl.CULL_FACE)
             gl.drawArrays(gl.TRIANGLE_FAN, 0, 4)
-            
+
             gl.clear(gl.DEPTH_BUFFER_BIT)
+
+            t += 0.
+
+            let rotate = glm.mat4(
+                Math.cos(t), 0., Math.sin(t), 0.,
+                0., 1., 0., 0.,
+                -Math.sin(t), 0., Math.cos(t), 0.,
+                0., 0., 0., 1.
+            )['*'](glm.mat4(
+                1., 0., 0., 0.,
+                0., Math.cos(t / 4.), -Math.sin(t / 4.), 0.,
+                0., Math.sin(t / 4.), Math.cos(t / 4.), 0.,
+                0., 0., 0., 1.
+            ))
+
+            let shadowMatrix = gameWorld.getShadowMatrix(
+                glm.vec3(light['sunDir'][0], light['sunDir'][1], light['sunDir'][2]), 30., 30., 1., 1., 120., 60.
+            )
+
+            renderShadow(gl, shadowP, light, vao, findex, delta, rotate, shadowMatrix, shadowBuffer)
+            gl.viewport(0, 0, canvas.width, canvas.height)
 
             gl.useProgram(prog)
 
             gl.bindVertexArray(vao)
 
-            gl.uniform2f(gl.getUniformLocation(prog, 'mpos'), mouseXNoLimit, mouseYNoLimit)
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'perspective'), false, perspective.array)
             gl.activeTexture(gl.TEXTURE0)
             gl.bindTexture(gl.TEXTURE_2D, albedo)
             gl.uniform1i(gl.getUniformLocation(prog, 'albedo'), 0)
             gl.activeTexture(gl.TEXTURE1)
             gl.bindTexture(gl.TEXTURE_2D, ao)
-            gl.uniform1i(gl.getUniformLocation(prog, 'ao'), 1)
+            gl.uniform1i(gl.getUniformLocation(prog, 'tao'), 1)
             gl.activeTexture(gl.TEXTURE2)
             gl.bindTexture(gl.TEXTURE_2D, asm)
             gl.uniform1i(gl.getUniformLocation(prog, 'tasm'), 2)
@@ -235,10 +299,14 @@ namespace tank {
             gl.activeTexture(gl.TEXTURE4)
             gl.bindTexture(gl.TEXTURE_2D, bump)
             gl.uniform1i(gl.getUniformLocation(prog, 'normalMap'), 4)
+            gl.activeTexture(gl.TEXTURE5)
+            gl.bindTexture(gl.TEXTURE_2D, shadowTex)
+            gl.uniform1i(gl.getUniformLocation(prog, 'shadowMap'), 5)
+
             gl.uniform1f(gl.getUniformLocation(prog, 'time'), gameTime)
 
             // --- light data ---
-            
+
             gl.uniform3f(gl.getUniformLocation(prog, 'sunDir'), sunDir.x, sunDir.y, sunDir.z)
             gl.uniform3f(gl.getUniformLocation(prog, 'sunColor'), light['sunColor'][0], light['sunColor'][1], light['sunColor'][2])
             gl.uniform3f(gl.getUniformLocation(prog, 'envColor'), light['envColor'][0], light['envColor'][1], light['envColor'][2])
@@ -247,29 +315,21 @@ namespace tank {
             gl.clearColor(light['envColor'][0] * light['envForce'], light['envColor'][1] * light['envForce'], light['envColor'][2] * light['envForce'], 1.)
             // ------------------
 
-            t += 0.
-
-            const rotateY = glm.mat4(
-                Math.cos(t), 0., Math.sin(t), 0.,
-                0., 1., 0., 0.,
-                -Math.sin(t), 0., Math.cos(t), 0.,
-                0., 0., 0., 1.
-            )
-            const rotateX = glm.mat4(
-                1., 0., 0., 0.,
-                0., Math.cos(t / 4.), -Math.sin(t / 4.), 0.,
-                0., Math.sin(t / 4.), Math.cos(t / 4.), 0.,
-                0., 0., 0., 1.
-            )
-            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'rotate'), false, rotateY['*'](rotateX).array)
+            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'rotate'), false, rotate.array)
+            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'inRotate'), false, glm.inverse(rotate).array)
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'viewMatrix'), false, viewMatrix.array)
+            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'perspectiveShadow'), false, shadowMatrix.array)
 
             gl.enable(gl.CULL_FACE)
+
             gl.drawElements(gl.TRIANGLE_FAN, findex.length, gl.UNSIGNED_INT, 0)
 
-            // gl.flush()
+            gameWorld.renderObjects(gl, delta, sky, gameTime, light, viewMatrix, perspective, null, 
+                false, shadowMatrix, shadowTex)
 
             gl.bindVertexArray(null)
+
+            gl.flush()
         })
     }
 

@@ -1,11 +1,5 @@
 {
     "config_render": "/config/render.json",
-    "texture_sky0": "/models/sky0.png",
-    "texture_sky1": "/models/sky1.png",
-    "texture_sky2": "/models/sky2.png",
-    "texture_sky3": "/models/sky3.png",
-    "texture_sky4": "/models/sky4.png",
-    "texture_sky5": "/models/sky5.png",
     "texture_skyb0": "/models/bluesky-px.png",
     "texture_skyb1": "/models/bluesky-nx.png",
     "texture_skyb2": "/models/bluesky-py.png",
@@ -17,9 +11,16 @@
     "shader_tankFrag": "/shaders/tank/default.frag",
     "shader_skyVert": "/shaders/sky/sky.vert",
     "shader_skyFrag": "/shaders/sky/sky.frag",
+    "shader_shadowVert": "/shaders/shadow/shadow.vert",
+    "shader_shadowFrag": "/shaders/shadow/shadow.frag",
     "texture_tank": "/models/map0.png",
     "texture_tankAO": "/models/map0AS.png",
     "texture_tankASM": "/models/map0ASM.png",
     "texture_tankMask": "/models/white.png",
-    "texture_normal": "/models/map0Normals.png"
+    "texture_normal": "/models/map0Normals.png",
+    "model_docter": "/models/docter.obj",
+    "texture_kiki": "/models/kiki.png",
+    "texture_kikiASM": "/models/kikiASM.png",
+    "texture_kikiAS": "/models/kikiAO.png",
+    "texture_kikiNormals": "/models/tankNormals.png"
 }

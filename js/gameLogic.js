@@ -1,6 +1,34 @@
 /// <reference path="./renderWorld.ts" />
 var logicDeltaTime = 0.01;
 var gameEvent = {};
+var NetworkStatus = /** @class */ (function () {
+    function NetworkStatus() {
+    }
+    NetworkStatus.prototype.getMessage = function () {
+        return JSON.stringify({
+            'owner': this.owner,
+            'body': this.massage
+        });
+    };
+    NetworkStatus.prototype.post = function (func) {
+        var msg = this.getMessage();
+        var retry = 3;
+        var xmlTrans = new XMLHttpRequest();
+        xmlTrans.open('POST', '');
+        xmlTrans.addEventListener('load', function (ev) {
+            func(xmlTrans.responseText);
+        });
+        xmlTrans.addEventListener('error', function (ev) {
+            retry -= 1;
+            if (retry >= 0) {
+                console.warn("A message retry to send (".concat(retry, ")"));
+                xmlTrans.send(msg);
+            }
+        });
+        xmlTrans.send(msg);
+    };
+    return NetworkStatus;
+}());
 function worldUpdate() {
     var fpsf = glm.vec3(gameWorld.camera.front.x, 0., gameWorld.camera.front.z);
     if (gameEvent['w']) {
@@ -42,7 +70,11 @@ function bindEvent() {
 }
 function gameStart() {
     bindEvent();
+    var lastTime = new Date().getTime();
     setInterval(function () {
+        var now = new Date().getTime();
         worldUpdate();
+        gameWorld.logicLoop(now - lastTime);
+        lastTime = now;
     }, 1000 * logicDeltaTime);
 }

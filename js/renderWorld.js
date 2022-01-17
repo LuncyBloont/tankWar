@@ -1,5 +1,27 @@
 /// <reference path="./glm-js.min.d.ts" />
 /// <reference path="./assetLoader.ts" />
+/// <reference path="./tbn.ts" />
+var GameObject = /** @class */ (function () {
+    function GameObject() {
+        this.active = true;
+        this.name = 'default';
+        this.position = glm.vec3(1., 2., 0.);
+        this.rotation = glm.vec3(0., 0., 0.);
+        this.scale = glm.vec3(1., 1., 1.);
+        this.model = 'model_docter';
+        this.texture = 'texture_kiki';
+        this.textureASM = 'texture_kikiASM';
+        this.textureAS = 'texture_kikiAS';
+        this.textureNormals = 'texture_kikiNormals';
+        this.shaderProgram = null;
+        this.perFrame = function (self, gl, delta) { };
+        this.perLogic = function (self, delta) {
+            self.rotation.y += delta * 0.008;
+        };
+        this.preGame = function (self, gl) { };
+    }
+    return GameObject;
+}());
 var gameWorld;
 (function (gameWorld) {
     gameWorld.camera = {
@@ -9,7 +31,7 @@ var gameWorld;
         up: glm.vec3(0., 1., 0.),
         fov: 65.
     };
-    gameWorld.renderObjects = [];
+    gameWorld.Objects = [];
     function fixCamera() {
         gameWorld.camera.front = glm.normalize(gameWorld.camera.front);
         gameWorld.camera.right = glm.normalize(glm.cross(gameWorld.camera.front, glm.vec3(0., 1., 0.)));
@@ -36,16 +58,125 @@ var gameWorld;
         return glm.mat4(gameWorld.camera.right.x, gameWorld.camera.up.x, -gameWorld.camera.front.x, 0., gameWorld.camera.right.y, gameWorld.camera.up.y, -gameWorld.camera.front.y, 0., gameWorld.camera.right.z, gameWorld.camera.up.z, -gameWorld.camera.front.z, 0., 0., 0., 0., 1.)['*'](glm.mat4(1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., -gameWorld.camera.position.x, -gameWorld.camera.position.y, -gameWorld.camera.position.z, 1.));
     }
     gameWorld.getCameraMatrix = getCameraMatrix;
-    /**
-     * Set a set of rendering objects
-     * @param pos glm.vec3
-     * @param rotate glm.vec3
-     * @param scale glm.vec3
-     * @param model string
-     * @param count number
-     */
-    function setObject(pos, rotate, scale, model, count) {
-        gameWorld.renderObjects.push();
+    function getShadowMatrix(sunDir, lwidth, lheight, twidth, theight, ldepth, offset) {
+        var front = glm.normalize(sunDir);
+        var right = glm.normalize(glm.cross(front, glm.vec3(0., 0., 1.)));
+        var up = glm.cross(right, front);
+        return glm.mat4(twidth / lwidth / 2., 0., 0., 0., 0., theight / lheight / 2., 0., 0., 0., 0., 1. / ldepth, 0., 0., 0., offset / ldepth, 1.)['*'](glm.mat4(right.x, up.x, front.x, 0., right.y, up.y, front.y, 0., right.z, up.z, front.z, 0., 0., 0., 0., 1.))['*'](glm.mat4(1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., -gameWorld.camera.position.x, -gameWorld.camera.position.y, -gameWorld.camera.position.z, 1.));
     }
-    gameWorld.setObject = setObject;
+    gameWorld.getShadowMatrix = getShadowMatrix;
+    function prepareObjexts(gl, program) {
+        for (var i in gameWorld.Objects) {
+            var gobj = gameWorld.Objects[i];
+            console.log(gobj);
+            var model = JSON.parse(assets[gobj.model]);
+            genTBN(model);
+            gobj.shaderProgram = gobj.shaderProgram ? gobj.shaderProgram : program;
+            gobj.vao = gl.createVertexArray();
+            gobj.idOfTexture = gl.createTexture();
+            gobj.idOfASTexture = gl.createTexture();
+            gobj.idOfASMTexture = gl.createTexture();
+            gobj.idOfNormalsMap = gl.createTexture();
+            gl.bindVertexArray(gobj.vao);
+            var vbo = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(model.vertex), gl.STATIC_DRAW);
+            gobj.findex = [];
+            for (var fi = 0; fi < model.face.length; fi++) {
+                for (var vi = 0; vi < model.face[fi].length; vi++) {
+                    gobj.findex.push(model.face[fi][vi]);
+                }
+                gobj.findex.push(Math.pow(2, 32) - 1);
+            }
+            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'pos'));
+            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'uv'));
+            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'normal'));
+            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'tangent'));
+            gl.enableVertexAttribArray(gl.getAttribLocation(gobj.shaderProgram, 'bitangent'));
+            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'pos'), 3, gl.FLOAT, false, 14 * 4, 0);
+            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'uv'), 2, gl.FLOAT, false, 14 * 4, 3 * 4);
+            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'normal'), 3, gl.FLOAT, true, 14 * 4, 5 * 4);
+            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'tangent'), 3, gl.FLOAT, true, 14 * 4, 8 * 4);
+            gl.vertexAttribPointer(gl.getAttribLocation(gobj.shaderProgram, 'bitangent'), 3, gl.FLOAT, true, 14 * 4, 11 * 4);
+            var ebo = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(gobj.findex), gl.STATIC_DRAW);
+            gl.bindVertexArray(null);
+            var linkTexture = function (texName, id) {
+                gl.bindTexture(gl.TEXTURE_2D, id);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, assets[texName]);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.generateMipmap(gl.TEXTURE_2D);
+            };
+            linkTexture(gobj.texture, gobj.idOfTexture);
+            linkTexture(gobj.textureAS, gobj.idOfASTexture);
+            linkTexture(gobj.textureASM, gobj.idOfASMTexture);
+            linkTexture(gobj.textureNormals, gobj.idOfNormalsMap);
+            gobj.preGame(gobj, gl);
+        }
+    }
+    gameWorld.prepareObjexts = prepareObjexts;
+    function renderObjects(gl, delta, sky, time, light, viewMat, perspective, program, shadow, shadowMat, shadowMap) {
+        for (var i in gameWorld.Objects) {
+            var gobj = gameWorld.Objects[i];
+            if (!gobj.active)
+                continue;
+            var prog = program ? program : gobj.shaderProgram;
+            gl.useProgram(prog);
+            gl.bindVertexArray(gobj.vao);
+            if (!shadow) {
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, gobj.idOfTexture);
+                gl.uniform1i(gl.getUniformLocation(prog, 'albedo'), 0);
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, gobj.idOfASTexture);
+                gl.uniform1i(gl.getUniformLocation(prog, 'tao'), 1);
+                gl.activeTexture(gl.TEXTURE2);
+                gl.bindTexture(gl.TEXTURE_2D, gobj.idOfASMTexture);
+                gl.uniform1i(gl.getUniformLocation(prog, 'tasm'), 2);
+                gl.activeTexture(gl.TEXTURE3);
+                gl.bindTexture(gl.TEXTURE_CUBE_MAP, sky);
+                gl.uniform1i(gl.getUniformLocation(prog, 'skyMap'), 3);
+                gl.activeTexture(gl.TEXTURE4);
+                gl.bindTexture(gl.TEXTURE_2D, gobj.idOfNormalsMap);
+                gl.uniform1i(gl.getUniformLocation(prog, 'normalMap'), 4);
+                gl.activeTexture(gl.TEXTURE5);
+                gl.bindTexture(gl.TEXTURE_2D, shadowMap);
+                gl.uniform1i(gl.getUniformLocation(prog, 'shadowMap'), 5);
+                gl.uniform1f(gl.getUniformLocation(prog, 'time'), time);
+                gl.uniform1f(gl.getUniformLocation(prog, 'sunForce'), light['sunForce']);
+                gl.uniform1f(gl.getUniformLocation(prog, 'envForce'), light['envForce']);
+                gl.uniform3f(gl.getUniformLocation(prog, 'sunColor'), light['sunColor'][0], light['sunColor'][1], light['sunColor'][2]);
+                gl.uniform3f(gl.getUniformLocation(prog, 'envColor'), light['envColor'][0], light['envColor'][1], light['envColor'][2]);
+            }
+            var cosx = Math.cos(gobj.rotation.x), sinx = Math.sin(gobj.rotation.x);
+            var cosy = Math.cos(gobj.rotation.y), siny = Math.sin(gobj.rotation.y);
+            var cosz = Math.cos(gobj.rotation.z), sinz = Math.sin(gobj.rotation.z);
+            var trans = glm.mat4(1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., gobj.position.x, gobj.position.y, gobj.position.z, 1.)['*'](glm.mat4(cosy, 0., -siny, 0., 0., 1., 0., 0., siny, 0., cosy, 0., 0., 0., 0., 1.))['*'](glm.mat4(1., 0., 0., 0., 0., cosx, sinx, 0., 0., -sinx, cosx, 0., 0., 0., 0., 1.))['*'](glm.mat4(cosz, sinz, 0., 0., -sinz, cosz, 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.))['*'](glm.mat4(gobj.scale.x, 0., 0., 0, 0., gobj.scale.y, 0., 0., 0., 0., gobj.scale.z, 0., 0., 0., 0., 1.));
+            if (perspective) {
+                gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'perspective'), false, perspective.array);
+            }
+            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'rotate'), false, trans.array);
+            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'inRotate'), false, glm.inverse(trans).array);
+            if (viewMat) {
+                gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'viewMatrix'), false, viewMat.array);
+            }
+            if (shadowMat) {
+                gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'perspectiveShadow'), false, shadowMat.array);
+            }
+            gobj.perFrame(gobj, gl, delta);
+            gl.drawElements(gl.TRIANGLE_FAN, gobj.findex.length, gl.UNSIGNED_INT, 0);
+        }
+    }
+    gameWorld.renderObjects = renderObjects;
+    function logicLoop(delta) {
+        for (var i in gameWorld.Objects) {
+            var gobj = gameWorld.Objects[i];
+            if (!gobj.active)
+                continue;
+            gobj.perLogic(gobj, delta);
+        }
+    }
+    gameWorld.logicLoop = logicLoop;
 })(gameWorld || (gameWorld = {}));

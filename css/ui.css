@@ -2,6 +2,7 @@
     position: fixed;
     left: 50%;
     top: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .gameCanvas {
@@ -21,4 +22,26 @@
     box-shadow: #333 0px 0px 5px 1px;
     border-radius: 15px;
     padding: 9px 14px;
+}
+
+.ui {
+    padding: 9px;
+    border-radius: 6px;
+    box-shadow: rgba(0, 0, 0, 0.6) 0px 0px 3px 0px;
+}
+
+input {
+    background: none;
+    border-width: 0px 0px 2px 0px;
+    border-color: bisque;
+    border-radius: 0px;
+    padding: 4px;
+}
+
+button {
+    background: none;
+    margin: 1px 8px 1px 8px;
+    border: 2px solid #676767;
+    border-radius: 6px;
+    padding: 3px 12px 3px 12px;
 }

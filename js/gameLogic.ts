@@ -3,6 +3,38 @@
 const logicDeltaTime = 0.01
 const gameEvent = {}
 
+class NetworkStatus<T> {
+    owner: string
+    massage: T
+    getMessage() {
+        return JSON.stringify({
+            'owner': this.owner,
+            'body': this.massage
+        })
+    }
+    post(func: (msg: string) => void) {
+        let msg = this.getMessage()
+        let retry = 3
+        let xmlTrans = new XMLHttpRequest()
+        xmlTrans.open('POST', '')
+        xmlTrans.addEventListener(
+            'load', (ev: ProgressEvent<XMLHttpRequestEventTarget>) => {
+                func(xmlTrans.responseText)
+            }
+        )
+        xmlTrans.addEventListener(
+            'error', (ev: ProgressEvent<XMLHttpRequestEventTarget>) => {
+                retry -= 1
+                if (retry >= 0) {
+                    console.warn(`A message retry to send (${retry})`)
+                    xmlTrans.send(msg)
+                }
+            }
+        )
+        xmlTrans.send(msg)
+    }
+}
+
 function worldUpdate() {
     let fpsf = glm.vec3(gameWorld.camera.front.x, 0., gameWorld.camera.front.z)
     if (gameEvent['w']) {
@@ -46,7 +78,11 @@ function bindEvent() {
 
 function gameStart() {
     bindEvent()
+    let lastTime = new Date().getTime()
     setInterval(() => {
+        let now = new Date().getTime()
         worldUpdate()
+        gameWorld.logicLoop(now - lastTime)
+        lastTime = now
     }, 1000 * logicDeltaTime)
 }

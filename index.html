@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <title>Tank War</title>
     <link type="text/css" rel="stylesheet" href="css/ui.css" />
+    <link type="image/x-icon" rel="icon" href="favicon.png" />
     <script src="js/glm-js.min.js"></script>
     <script src="js/tbn.js"></script>
     <script src="js/frame.js"></script>
@@ -12,18 +13,25 @@
     <script src="js/alert.js"></script>
     <script src="js/renderWorld.js"></script>
     <script src="js/gameLogic.js"></script>
+    <script src="js/newYear.js"></script>
+    <script src="js/playerConfig.js"></script>
 </head>
 
 <body>
     <div id="messageBox">加载中</div>
     <script>
         genAlert(document.getElementById('messageBox'))
-        cLoadAsset(() => {
-            tank.main()
-            tank.gameInit()
-            tank.startGame()
-        })
-        gameStart()
+        function gameInit() {
+            gameConfig1()
+            cLoadAsset(() => {
+                tank.main()
+                tank.gameInit()
+                tank.startGame()
+            })
+            gameStart()
+        }
+        player.getIDByUI(gameInit)
+
     </script>
 </body>
 

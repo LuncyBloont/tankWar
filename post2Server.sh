@@ -24,7 +24,12 @@ cp -r ./server/*.js tmp/server/
 cp -r ./shaders tmp/
 cp -r ./*.js tmp/
 cp -r ./*.html tmp/
+cp -r ./*.png tmp/
+cp -r ./*.ico tmp/
 cp -r ./run.sh tmp/
 
 scp -r ./tmp ${user}@${server}:~/webs/tank
 rm -r tmp
+echo Done.
+read a
+exit
