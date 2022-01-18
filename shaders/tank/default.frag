@@ -1,8 +1,8 @@
 #version 300 es
 
-#define shadowScale 0.001
-#define shadowStep 0.0005
-#define shadowBias 0.006
+#define shadowScale 0.0015
+#define shadowStep 0.001
+#define shadowBias 0.005
 
 precision mediump float;
 out vec4 color;
@@ -38,22 +38,26 @@ float noise(vec2 uv)
     return fract(sin(dot(vec2(24.342429, 105.24344), uv)) * 284322.942925432 + time / 1056.);
 }
 
-float calSunForce(float asF)
+float calSunForce(float asF, vec3 normal)
 {
     float sf = 0.;
     float base = 0.;
+    float bias = shadowBias * (1. - 0.5 * abs(dot(normal, sunDir)));
     for (float x = -shadowScale; x <= shadowScale; x += shadowStep)
     {
         for (float y = -shadowScale; y <= shadowScale; y += shadowStep)
         {
-            float shadow = texture(shadowMap, shadowPos.xy * 0.5 + 0.5 + vec2(x, y)).r;
-            if (shadowPos.x < -1. || shadowPos.x > 1. || shadowPos.y < -1. || shadowPos.y > 1.)
-            {
-                shadow = 1.;
-            }
-            if (shadow > shadowPos.z - shadowBias || shadowPos.z >= 1.0)
+            vec2 uv = shadowPos.xy * 0.5 + 0.5 + vec2(x, y);
+            uv = clamp(uv, -1., 1.);
+            float shadow = texture(shadowMap, uv).r;
+            float diff = shadow - shadowPos.z + bias;
+            if (diff > 0. || shadowPos.z >= 1.0)
             {
                 sf += sunForce;
+            }
+            else
+            {
+                sf += max(0., (bias + diff) / bias);
             }
             base += 1.;
         }
@@ -82,7 +86,7 @@ void main()
     vec3 alb = texture(albedo, uv).rgb * 0.6 + vec3(0.1);
     vec3 colm = alb;
     vec4 aocol = texture(tao, uv);
-    float sf = calSunForce(aocol.g);
+    float sf = calSunForce(aocol.g, normal);
     vec3 a_s_m = texture(tasm, uv).rgb;
     vec3 viewDir = -normalize(fpos);
     float alphaBase = pow(a_s_m.r, 2.);
