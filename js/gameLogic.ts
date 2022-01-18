@@ -6,20 +6,27 @@ const gameEvent = {}
 class NetworkStatus<T> {
     owner: string
     massage: T
+    time: number
     getMessage() {
         return JSON.stringify({
             'owner': this.owner,
-            'body': this.massage
+            'body': this.massage,
+            'time': this.time
         })
     }
-    post(func: (msg: string) => void) {
+    post(func: (msg: string) => void, timeoutFunc: () => void) {
+        this.time = new Date().getTime()
         let msg = this.getMessage()
         let retry = 3
         let xmlTrans = new XMLHttpRequest()
         xmlTrans.open('POST', '')
         xmlTrans.addEventListener(
             'load', (ev: ProgressEvent<XMLHttpRequestEventTarget>) => {
-                func(xmlTrans.responseText)
+                if (xmlTrans.responseText != 'timeout') {
+                    func(xmlTrans.responseText)
+                } else {
+                    timeoutFunc()
+                }
             }
         )
         xmlTrans.addEventListener(

@@ -353,6 +353,5 @@ namespace tank {
             window.requestAnimationFrame(update)
         }
         window.requestAnimationFrame(update)
-        console.log(glm.vec4(3, 7, 9, 2))
     }
 }

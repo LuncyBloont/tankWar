@@ -25,7 +25,6 @@ function waitAssetLoadDone(func) {
         if (assetsNow == assetsTask) {
             func();
             clearInterval(wait);
-            console.log(assets);
         }
     }, 500);
 }

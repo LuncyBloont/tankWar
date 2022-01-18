@@ -7,16 +7,23 @@ var NetworkStatus = /** @class */ (function () {
     NetworkStatus.prototype.getMessage = function () {
         return JSON.stringify({
             'owner': this.owner,
-            'body': this.massage
+            'body': this.massage,
+            'time': this.time
         });
     };
-    NetworkStatus.prototype.post = function (func) {
+    NetworkStatus.prototype.post = function (func, timeoutFunc) {
+        this.time = new Date().getTime();
         var msg = this.getMessage();
         var retry = 3;
         var xmlTrans = new XMLHttpRequest();
         xmlTrans.open('POST', '');
         xmlTrans.addEventListener('load', function (ev) {
-            func(xmlTrans.responseText);
+            if (xmlTrans.responseText != 'timeout') {
+                func(xmlTrans.responseText);
+            }
+            else {
+                timeoutFunc();
+            }
         });
         xmlTrans.addEventListener('error', function (ev) {
             retry -= 1;

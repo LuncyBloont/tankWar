@@ -1,6 +1,9 @@
 /// <reference path="./gameLogic.ts" />
 /// <reference path="./renderWorld.ts" />
 /// <reference path="./playerConfig.ts" />
+/// <reference path="./frame.ts" />
+
+const magicMaxTime = 20 * 1000
 
 class GameAction {
     t = ''
@@ -24,7 +27,15 @@ class MagicImage extends GameObject {
 
     playerObjPool: Array<OtherPlayer> = []
 
+    lastTime = 0
+
+    lock: number = 0
+
     sendStatus() {
+        if (new Date().getTime() - this.lock < magicMaxTime) {
+            return
+        }
+        let safeAction = this.network.massage.a
         this.network.massage.p = [
             gameWorld.camera.position.x,
             gameWorld.camera.position.y,
@@ -37,9 +48,21 @@ class MagicImage extends GameObject {
         ]
         this.network.massage.n = this.network.owner
         this.network.post((s: string) => {
-            this.renderObj(JSON.parse(s))
+            let bag = JSON.parse(s)
+            if (bag.time >= this.lastTime) {
+                this.renderObj(bag.list)
+                this.lastTime = bag.time
+            }
+            this.lock = 0
+        }, () => {
+            for (let i in this.network.massage.a) {
+                safeAction.push(this.network.massage.a[i])
+            }
+            this.network.massage.a = safeAction
+            this.lock = 0
         })
         this.network.massage.a = []
+        this.lock = new Date().getTime()
     }
 
     renderObj(otherList: Array<TransBase>) {
@@ -149,8 +172,8 @@ class OtherPlayer extends GameObject {
                 return a['*'](1 - c)['+'](b['*'](c))
             }
 
-            self.position = lerp(self.position, self.netPosition, 0.3)
-            self.front = lerp(self.front, self.netFront, 0.3)
+            self.position = lerp(self.position, self.netPosition, 0.15)
+            self.front = lerp(self.front, self.netFront, 0.15)
             self.front = glm.normalize(self.front)
 
             let front2 = glm.vec2(self.front.x, self.front.z)
@@ -224,7 +247,7 @@ class NameBoard extends GameObject {
         }
 
         this.perFrame = (self: NameBoard, ngl: WebGL2RenderingContext, delta: number, shadow: boolean) => {
-            if (!shadow) {
+            if (!shadow && self.ts.length > 0) {
                 ngl.uniform1iv(ngl.getUniformLocation(textProg, 'text'), new Int32Array(self.ts))
             }
         }

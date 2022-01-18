@@ -1,6 +1,7 @@
 /// <reference path="./gameLogic.ts" />
 /// <reference path="./renderWorld.ts" />
 /// <reference path="./playerConfig.ts" />
+/// <reference path="./frame.ts" />
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -16,6 +17,7 @@ var __extends = (this && this.__extends) || (function () {
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
+var magicMaxTime = 20 * 1000;
 var GameAction = /** @class */ (function () {
     function GameAction() {
         this.t = '';
@@ -38,6 +40,8 @@ var MagicImage = /** @class */ (function (_super) {
         _this.timeToPost = 1000.;
         _this.network = new NetworkStatus();
         _this.playerObjPool = [];
+        _this.lastTime = 0;
+        _this.lock = 0;
         _this.position = glm.vec3(4., 0., 10.);
         _this.network.massage = new TransBase();
         _this.network.owner = player.playerID;
@@ -76,6 +80,10 @@ var MagicImage = /** @class */ (function (_super) {
     }
     MagicImage.prototype.sendStatus = function () {
         var _this = this;
+        if (new Date().getTime() - this.lock < magicMaxTime) {
+            return;
+        }
+        var safeAction = this.network.massage.a;
         this.network.massage.p = [
             gameWorld.camera.position.x,
             gameWorld.camera.position.y,
@@ -88,9 +96,21 @@ var MagicImage = /** @class */ (function (_super) {
         ];
         this.network.massage.n = this.network.owner;
         this.network.post(function (s) {
-            _this.renderObj(JSON.parse(s));
+            var bag = JSON.parse(s);
+            if (bag.time >= _this.lastTime) {
+                _this.renderObj(bag.list);
+                _this.lastTime = bag.time;
+            }
+            _this.lock = 0;
+        }, function () {
+            for (var i in _this.network.massage.a) {
+                safeAction.push(_this.network.massage.a[i]);
+            }
+            _this.network.massage.a = safeAction;
+            _this.lock = 0;
         });
         this.network.massage.a = [];
+        this.lock = new Date().getTime();
     };
     MagicImage.prototype.renderObj = function (otherList) {
         var _this = this;
@@ -159,8 +179,8 @@ var OtherPlayer = /** @class */ (function (_super) {
             var lerp = function (a, b, c) {
                 return a['*'](1 - c)['+'](b['*'](c));
             };
-            self.position = lerp(self.position, self.netPosition, 0.3);
-            self.front = lerp(self.front, self.netFront, 0.3);
+            self.position = lerp(self.position, self.netPosition, 0.15);
+            self.front = lerp(self.front, self.netFront, 0.15);
             self.front = glm.normalize(self.front);
             var front2 = glm.vec2(self.front.x, self.front.z);
             self.rotation.y = Math.atan2(-front2.x, -front2.y);
@@ -199,7 +219,7 @@ var NameBoard = /** @class */ (function (_super) {
             self.rotation.y = Math.atan2(-diff.x, -diff.z);
         };
         _this.perFrame = function (self, ngl, delta, shadow) {
-            if (!shadow) {
+            if (!shadow && self.ts.length > 0) {
                 ngl.uniform1iv(ngl.getUniformLocation(textProg, 'text'), new Int32Array(self.ts));
             }
         };
