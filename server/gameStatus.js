@@ -46,13 +46,14 @@ var gameNetwork;
                 }
             }
             var responseBag = {
-                'time': new Date().getTime(),
+                'time': nsts.time,
+                'serverTime': Date.now(),
                 'list': respList
             };
             return JSON.stringify(responseBag);
         }
         catch (err) {
-            return '/><script>alert(-2343.34123)</script><!--';
+            return 'timeout';
         }
     }
     gameNetwork.gotMsg = gotMsg;

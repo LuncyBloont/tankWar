@@ -1,5 +1,5 @@
 {
-    "canvasWidth": 1280,
-    "canvasHeight": 720,
+    "canvasWidth": 1024,
+    "canvasHeight": 576,
     "deltaTime": 5
 }

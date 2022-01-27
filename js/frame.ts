@@ -2,6 +2,7 @@
 /// <reference path="./assetLoader.ts" />
 /// <reference path="./renderWorld.ts" />
 /// <reference path="./tbn.ts" />
+/// <reference path="./gameLogic.ts" />
 
 namespace tank {
     const shadowSize = 1024
@@ -82,7 +83,8 @@ namespace tank {
     }
 
     function renderShadow(gl: WebGL2RenderingContext, shadowP: WebGLProgram, light: any, 
-        mapvao: WebGLVertexArrayObject, mapIndex: Array<number>, delta: number, mapRotate: any, shadowMat: any, frame: WebGLFramebuffer) {
+        mapvao: WebGLVertexArrayObject, mapIndex: Array<number>, delta: number, mapRotate: any, shadowMat: any,
+        frame: WebGLFramebuffer, asm: WebGLTexture) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, frame)
         gl.clearColor(1., 0., 0., 1.)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT)
@@ -93,6 +95,10 @@ namespace tank {
 
         gl.uniformMatrix4fv(gl.getUniformLocation(shadowP, 'perspectiveShadow'), false, shadowMat.array)
         gl.uniformMatrix4fv(gl.getUniformLocation(shadowP, 'rotate'), false, mapRotate.array)
+        gl.uniform1f(gl.getUniformLocation(shadowP, 'time'), localTime())
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, asm)
+        gl.uniform1i(gl.getUniformLocation(shadowP, 'tasm'), 0)
 
         gl.drawElements(gl.TRIANGLE_FAN, mapIndex.length, gl.UNSIGNED_INT, 0)
 
@@ -278,10 +284,10 @@ namespace tank {
             ))
 
             let shadowMatrix = gameWorld.getShadowMatrix(
-                glm.vec3(light['sunDir'][0], light['sunDir'][1], light['sunDir'][2]), 30., 30., 1., 1., 120., 60.
+                glm.vec3(light['sunDir'][0], light['sunDir'][1], light['sunDir'][2]), 30., 30., shadowSize, shadowSize, 120., 60.
             )
 
-            renderShadow(gl, shadowP, light, vao, findex, delta, rotate, shadowMatrix, shadowBuffer)
+            renderShadow(gl, shadowP, light, vao, findex, delta, rotate, shadowMatrix, shadowBuffer, asm)
             gl.viewport(0, 0, canvas.width, canvas.height)
 
             gl.useProgram(prog)
@@ -327,6 +333,10 @@ namespace tank {
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'inRotate'), false, glm.inverse(rotate).array)
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'viewMatrix'), false, viewMatrix.array)
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'perspectiveShadow'), false, shadowMatrix.array)
+            gl.uniform1f(gl.getUniformLocation(prog, 'noiseSize'), 2048)
+            gl.uniform1f(gl.getUniformLocation(prog, 'noiseForce'), 0.15)
+            gl.uniform3fv(gl.getUniformLocation(prog, 'light'), gameWorld.getArrayOfLight())
+            gl.uniform3fv(gl.getUniformLocation(prog, 'lightRGB'), gameWorld.getColorArrayOfLight())
 
             gl.enable(gl.CULL_FACE)
 

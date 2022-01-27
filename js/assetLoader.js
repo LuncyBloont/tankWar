@@ -12,7 +12,7 @@ function readAssetsTable(onloadfunc) {
             waitAssetLoadDone(onloadfunc);
         }
         else {
-            document.write('Game assets list config request error.');
+            document.write('Game assets list config request error. <a href="127.0.0.1:3000/index.html">RETRY</a>');
         }
     });
     request.open('GET', './config/assets.json');
@@ -44,7 +44,7 @@ function loadOne(index, nameList) {
             loadOne(index + 1, nameList);
         });
         img_1.addEventListener('error', function (ev) {
-            console.log('Web multimedia assets request error.');
+            document.write('Web multimedia assets request error. <a href="127.0.0.1:3000/index.html">RETRY</a>');
         });
         img_1.src = assetTabel[i];
     }
@@ -57,7 +57,7 @@ function loadOne(index, nameList) {
             loadOne(index + 1, nameList);
         });
         adu_1.addEventListener('error', function (ev) {
-            console.log('Game multimedia assets request error.');
+            document.write('Game multimedia assets request error. <a href="127.0.0.1:3000/index.html">RETRY</a>');
         });
         adu_1.src = assetTabel[i];
     }
@@ -71,7 +71,7 @@ function loadOne(index, nameList) {
                 loadOne(index + 1, nameList);
             }
             else {
-                console.log('failed to reqest config assets.');
+                document.write('failed to reqest config assets. <a href="127.0.0.1:3000/index.html">RETRY</a>');
             }
         });
         confRequire_1.open('GET', assetTabel[i]);
@@ -87,11 +87,30 @@ function loadOne(index, nameList) {
                 loadOne(index + 1, nameList);
             }
             else {
-                console.log('Game assets request error');
+                document.write('Game assets request error <a href="127.0.0.1:3000/index.html">RETRY</a>');
             }
         });
         request_1.open('GET', assetTabel[i]);
         request_1.send(null);
+    }
+    if (root == 'map') {
+        var request_2 = new XMLHttpRequest();
+        request_2.responseType = 'arraybuffer';
+        request_2.addEventListener('load', function (ev) {
+            if (request_2.status == 200) {
+                assets[i] = new Uint8Array(request_2.response);
+                var arr = assets[i];
+                console.log(arr);
+                assetsNow += 1;
+                console.log(assetTabel[i] + ' GOT!');
+                loadOne(index + 1, nameList);
+            }
+            else {
+                document.write('Game assets request error <a href="127.0.0.1:3000/index.html">RETRY</a>');
+            }
+        });
+        request_2.open('GET', assetTabel[i]);
+        request_2.send(null);
     }
 }
 function initAssets() {

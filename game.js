@@ -7,6 +7,8 @@ var gameStatus_1 = require("./server/gameStatus");
 var server = (0, http_1.createServer)(function (req, res) {
     var imageType = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'icon'];
     var audioType = ['mp3', 'wav'];
+    var xType = ['map'];
+    var xTypeRel = ['map'];
     var midPos = req.url.indexOf('?');
     if (midPos < 0)
         midPos = req.url.length;
@@ -37,7 +39,6 @@ var server = (0, http_1.createServer)(function (req, res) {
                 }
                 else {
                     res.statusCode = 200;
-                    res.setHeader('Content-Type', 'image/' + ftype);
                     res.end(data);
                 }
             });
@@ -51,8 +52,22 @@ var server = (0, http_1.createServer)(function (req, res) {
                 }
                 else {
                     res.statusCode = 200;
-                    res.setHeader('Content-Type', 'audio/' + ftype);
                     res.end(data);
+                }
+            });
+        }
+        else if (xType.indexOf(ftype) >= 0) {
+            var relPath_1 = path.substring(0, path.lastIndexOf('.')) + '.' + xTypeRel[xType.indexOf(ftype)];
+            console.log(relPath_1);
+            (0, fs_1.readFile)(relPath_1, null, function (err, data) {
+                if (err) {
+                    res.statusCode = 404;
+                    res.setHeader('Content-Type', 'text/plain');
+                    res.end('404 No such xfile' + relPath_1 + ' (' + path + ')');
+                }
+                else {
+                    res.statusCode = 200;
+                    res.end((0, requestFilter_1.xFile)(data, ftype));
                 }
             });
         }

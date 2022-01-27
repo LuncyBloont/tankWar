@@ -1,7 +1,7 @@
-/// <reference path="./gameLogic.ts" />
-/// <reference path="./renderWorld.ts" />
 /// <reference path="./playerConfig.ts" />
 /// <reference path="./frame.ts" />
+/// <reference path="./gameLogic.ts" />
+/// <reference path="./renderWorld.ts" />
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -20,7 +20,7 @@ var __extends = (this && this.__extends) || (function () {
 var magicMaxTime = 20 * 1000;
 var GameAction = /** @class */ (function () {
     function GameAction() {
-        this.t = '';
+        this.n = '';
     }
     return GameAction;
 }());
@@ -32,6 +32,40 @@ var TransBase = /** @class */ (function () {
     }
     return TransBase;
 }());
+var NewYearBall = /** @class */ (function (_super) {
+    __extends(NewYearBall, _super);
+    function NewYearBall(pid) {
+        var _this = _super.call(this) || this;
+        _this.fireTime = 6;
+        _this.startTime = -1;
+        _this.startPosition = glm.vec3(0, 0, 0);
+        _this.startRotation = glm.vec3(0, 0, 0);
+        _this.poolID = -1;
+        _this.P = function (spos, time) {
+            return spos['+'](glm.vec3(0, time < 3 ? 0 : 0.5 * 36 * Math.pow(time - 3, 2), 0));
+        };
+        _this.R = function (srot, time) {
+            return srot['+'](glm.vec3(0, time < 3 ? 0 : 0.5 * 26 * Math.pow(time - 3, 2), 0));
+        };
+        _this.poolID = pid;
+        _this.texture = 'texture_firecracker0';
+        _this.textureASM = 'texture_firecracker0ASM';
+        _this.textureAS = 'texture_firecracker0AS';
+        _this.textureNormals = 'texture_firecracker0Normals';
+        _this.textureEmission = 'texture_firecracker0Emisson';
+        _this.model = 'model_firecracker0';
+        _this.perLogic = function (self, delta) {
+            var t = (localTime() - self.startTime) / 1000;
+            self.position = self.P(self.startPosition, t);
+            self.rotation = self.R(self.startRotation, t);
+            if (t > self.fireTime) {
+                self.active = false;
+            }
+        };
+        return _this;
+    }
+    return NewYearBall;
+}(GameObject));
 var MagicImage = /** @class */ (function (_super) {
     __extends(MagicImage, _super);
     function MagicImage() {
@@ -42,6 +76,9 @@ var MagicImage = /** @class */ (function (_super) {
         _this.playerObjPool = [];
         _this.lastTime = 0;
         _this.lock = 0;
+        _this.test = [];
+        _this.testID = 0;
+        _this.testPut = 0;
         _this.position = glm.vec3(4., 0., 10.);
         _this.network.massage = new TransBase();
         _this.network.owner = player.playerID;
@@ -51,7 +88,16 @@ var MagicImage = /** @class */ (function (_super) {
         _this.textureAS = 'texture_face0AS';
         _this.textureNormals = 'texture_face0Normals';
         _this.show = false;
+        for (var i = 0; i < 32; i++) {
+            _this.test.push(new NewYearBall(i));
+        }
+        _this.preGame = function (self, gl) {
+            self.light = gameWorld.newLight();
+            gameWorld.getLight(self.light).rgb = glm.vec3(0.97, 0.34, 0.56);
+            gameWorld.getLight(self.light).power = 5.0;
+        };
         _this.perLogic = function (self, delta) {
+            gameWorld.getLight(self.light).position = self.position;
             var diff = gameWorld.camera.position['+'](glm.vec3(0., -0.8, 0.))['-'](self.position);
             var diffLen = glm.length(diff);
             if (diffLen > 3. && diffLen < 16. && self.willCaching) {
@@ -63,6 +109,24 @@ var MagicImage = /** @class */ (function (_super) {
             }
             if (diffLen > 16.) {
                 self.willCaching = false;
+            }
+            self.testPut += delta / 1000;
+            if (self.testPut > 3)
+                self.testPut = 3;
+            if (gameEvent['1'] && self.testPut >= 3) {
+                self.testPut = 0;
+                var t = localTime();
+                var front = glm.normalize(glm.vec2(gameWorld.camera.front.x, gameWorld.camera.front.z));
+                var pos = gameWorld.camera.position['+'](glm.vec3(front.x, 0, front.y)['*'](4));
+                pos.y = getHeight(pos.x, pos.z, 'map_mapCollision', gMapCenter, gMapScale, gMapZMin, gMapZMax, gMapWidth, gMapHeight);
+                var rot = glm.vec3(0, Math.atan2(diff.x, diff.z), 0);
+                self.activeOnewBall(pos, rot, t);
+                var a = new GameAction();
+                a.p = [pos.x, pos.y, pos.z];
+                a.r = [rot.x, rot.y, rot.z];
+                a.t = t;
+                a.n = 'w1';
+                self.network.massage.a.push(a);
             }
             self.timeToPost -= delta;
             if (self.timeToPost < 0) {
@@ -96,10 +160,13 @@ var MagicImage = /** @class */ (function (_super) {
         ];
         this.network.massage.n = this.network.owner;
         this.network.post(function (s) {
-            var bag = JSON.parse(s);
+            var bag = s;
             if (bag.time >= _this.lastTime) {
-                _this.renderObj(bag.list);
+                _this.renderObj(bag.list, false);
                 _this.lastTime = bag.time;
+            }
+            else {
+                _this.renderObj(bag.list, true);
             }
             _this.lock = 0;
         }, function () {
@@ -112,11 +179,20 @@ var MagicImage = /** @class */ (function (_super) {
         this.network.massage.a = [];
         this.lock = new Date().getTime();
     };
-    MagicImage.prototype.renderObj = function (otherList) {
+    MagicImage.prototype.activeOnewBall = function (pos, rot, time) {
+        this.testID = (this.testID + 1) % this.test.length;
+        var o = this.test[this.testID];
+        o.active = true;
+        o.startPosition = pos;
+        o.startRotation = rot;
+        o.startTime = time;
+    };
+    MagicImage.prototype.renderObj = function (otherList, old) {
         var _this = this;
         for (var i in this.playerObjPool) {
             this.playerObjPool[i].mark = false;
         }
+        console.log(otherList);
         var getFromLocal = function (name) {
             for (var i in _this.playerObjPool) {
                 if (_this.playerObjPool[i].name == name) {
@@ -130,9 +206,11 @@ var MagicImage = /** @class */ (function (_super) {
             var netOne = otherList[i];
             var localOne = getFromLocal(netOne.n);
             if (localOne) {
-                localOne.netPosition = glm.vec3(netOne.p[0], netOne.p[1], netOne.p[2]);
-                localOne.name = netOne.n;
-                localOne.netFront = glm.vec3(netOne.r[0], netOne.r[1], netOne.r[2]);
+                if (!old) {
+                    localOne.netPosition = glm.vec3(netOne.p[0], netOne.p[1], netOne.p[2]);
+                    localOne.name = netOne.n;
+                    localOne.netFront = glm.vec3(netOne.r[0], netOne.r[1], netOne.r[2]);
+                }
                 localOne.nameBoard.active = true;
             }
             else {
@@ -145,6 +223,13 @@ var MagicImage = /** @class */ (function (_super) {
                 newOne.nameBoard.active = true;
                 newOne.nameBoard.refreshNameText();
                 console.log("".concat(newOne.name, "\u52A0\u5165\u6E38\u620F"));
+            }
+            console.log(netOne.a);
+            for (var j = 0; j < netOne.a.length; j++) {
+                var action = netOne.a[i];
+                if (action.n == 'w1') {
+                    this.activeOnewBall(glm.vec3(action.p[0], action.p[1], action.p[2]), glm.vec3(action.r[0], action.r[1], action.r[2]), action.t);
+                }
             }
         }
         for (var i in this.playerObjPool) {
@@ -165,6 +250,7 @@ var OtherPlayer = /** @class */ (function (_super) {
         _this.netFront = glm.vec3(0., 0., -1.);
         _this.front = glm.vec3(0., 0., -1.);
         _this.nameBoard = null;
+        _this.size = 4;
         _this.active = false;
         _this.name = '';
         _this.model = 'model_player0';
@@ -185,6 +271,13 @@ var OtherPlayer = /** @class */ (function (_super) {
             var front2 = glm.vec2(self.front.x, self.front.z);
             self.rotation.y = Math.atan2(-front2.x, -front2.y);
             self.rotation.x = Math.atan2(self.front.y, glm.length(front2));
+            var dis = glm.distance(self.position, gameWorld.camera.position);
+            if (dis < self.size) {
+                cvelocity['-='](glm.normalize(self.position['-'](gameWorld.camera.position))['*']((self.size - dis) * 12));
+                if (gameWorld.camera.position.y - self.position.y > self.size / 2) {
+                    conGround = true;
+                }
+            }
         };
         return _this;
     }
@@ -261,9 +354,52 @@ var NameBoard = /** @class */ (function (_super) {
     };
     return NameBoard;
 }(GameObject));
+function mapInit() {
+    var tmp = new GameObject();
+    tmp.model = 'model_mapBeach';
+    tmp.texture = 'texture_mapBeach';
+    tmp.textureASM = 'texture_mapBeachASM';
+    tmp.textureAS = 'texture_mapBeachAS';
+    tmp.textureNormals = 'texture_mapBeachNormals';
+    tmp.perLogic = function (self, delta) { };
+    tmp.noiseSize = 8096;
+    tmp.noiseForce = 0.05;
+    gameWorld.objects.push(tmp);
+    tmp = new GameObject();
+    tmp.model = 'model_mapColl';
+    tmp.texture = 'texture_mapColl';
+    tmp.textureASM = 'texture_mapCollASM';
+    tmp.textureAS = 'texture_mapCollAS';
+    tmp.textureNormals = 'texture_mapCollNormals';
+    tmp.perLogic = function (self, delta) { };
+    tmp.noiseSize = 2048;
+    tmp.noiseForce = 0.12;
+    gameWorld.objects.push(tmp);
+    tmp = new GameObject();
+    tmp.model = 'model_mapCover';
+    tmp.texture = 'texture_mapCover';
+    tmp.textureASM = 'texture_mapCoverASM';
+    tmp.textureAS = 'texture_mapCoverAS';
+    tmp.textureNormals = 'texture_mapCoverNormals';
+    tmp.perLogic = function (self, delta) { };
+    tmp.noiseSize = 2038;
+    tmp.noiseForce = 0.2;
+    gameWorld.objects.push(tmp);
+    tmp = new GameObject();
+    tmp.model = 'model_mapPlants';
+    tmp.texture = 'texture_mapPlants';
+    tmp.textureASM = 'texture_mapPlantsASM';
+    tmp.textureAS = 'texture_mapPlantsAS';
+    tmp.textureNormals = 'texture_mapPlantsNormals';
+    tmp.perLogic = function (self, delta) { };
+    tmp.noiseSize = 1024;
+    tmp.noiseForce = 0.1;
+    gameWorld.objects.push(tmp);
+}
 function gameConfig1() {
+    mapInit();
     var tmp = new MagicImage();
-    gameWorld.Objects.push(tmp);
+    gameWorld.objects.push(tmp);
     var oplist = [];
     for (var i = 0; i < 16; i++) {
         var op = new OtherPlayer();
@@ -271,8 +407,20 @@ function gameConfig1() {
         nb.target = op;
         op.nameBoard = nb;
         oplist.push(op);
-        gameWorld.Objects.push(op);
-        gameWorld.Objects.push(nb);
+        gameWorld.objects.push(op);
+        gameWorld.objects.push(nb);
     }
     tmp.playerObjPool = oplist;
+    var tmp2 = new GameObject();
+    tmp2.position = glm.vec3(38, 23, -59);
+    var old = tmp2.perLogic;
+    tmp2.perLogic = function (self, delta) {
+        old(self, delta);
+        self.position.y = getHeight(self.position.x, self.position.z, 'map_mapCollision', gMapCenter, gMapScale, gMapZMin, gMapZMax, gMapWidth, gMapHeight) + 3;
+    };
+    gameWorld.objects.push(tmp2);
+    for (var i = 0; i < tmp.test.length; i++) {
+        tmp.test[i].active = false;
+        gameWorld.objects.push(tmp.test[i]);
+    }
 }

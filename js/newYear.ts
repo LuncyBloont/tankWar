@@ -1,14 +1,15 @@
-/// <reference path="./gameLogic.ts" />
-/// <reference path="./renderWorld.ts" />
 /// <reference path="./playerConfig.ts" />
 /// <reference path="./frame.ts" />
+/// <reference path="./gameLogic.ts" />
+/// <reference path="./renderWorld.ts" />
 
 const magicMaxTime = 20 * 1000
 
 class GameAction {
-    t = ''
+    n = ''
     p: Array<number>
     r: Array<number>
+    t: number
 }
 
 class TransBase {
@@ -16,6 +17,39 @@ class TransBase {
     p: Array<number> = []
     r: Array<number> = []
     a: Array<GameAction> = []
+}
+
+class NewYearBall extends GameObject {
+    fireTime: number = 6
+    startTime: number = -1
+    startPosition: any = glm.vec3(0, 0, 0)
+    startRotation: any = glm.vec3(0, 0, 0)
+    poolID: number = -1
+    P: (spos: any, time: number) => any = (spos: any, time: number) => {
+        return spos['+'](glm.vec3(0, time < 3 ? 0 : 0.5 * 36 * Math.pow(time - 3, 2), 0))
+    }
+    R: (srot: any, time: number) => any = (srot: any, time: number) => {
+        return srot['+'](glm.vec3(0, time < 3 ? 0 : 0.5 * 26 * Math.pow(time - 3, 2), 0))
+    }
+
+    constructor(pid: number) {
+        super()
+        this.poolID = pid
+        this.texture = 'texture_firecracker0'
+        this.textureASM = 'texture_firecracker0ASM'
+        this.textureAS = 'texture_firecracker0AS'
+        this.textureNormals = 'texture_firecracker0Normals'
+        this.textureEmission = 'texture_firecracker0Emisson'
+        this.model = 'model_firecracker0'
+        this.perLogic = (self: NewYearBall, delta: number) => {
+            let t = (localTime() - self.startTime) / 1000
+            self.position = self.P(self.startPosition, t)
+            self.rotation = self.R(self.startRotation, t)
+            if (t > self.fireTime) {
+                self.active = false
+            }
+        }
+    }
 }
 
 class MagicImage extends GameObject {
@@ -30,6 +64,14 @@ class MagicImage extends GameObject {
     lastTime = 0
 
     lock: number = 0
+
+    light: number
+
+    test: Array<NewYearBall> = []
+
+    testID = 0
+
+    testPut = 0
 
     sendStatus() {
         if (new Date().getTime() - this.lock < magicMaxTime) {
@@ -47,11 +89,13 @@ class MagicImage extends GameObject {
             gameWorld.camera.front.z
         ]
         this.network.massage.n = this.network.owner
-        this.network.post((s: string) => {
-            let bag = JSON.parse(s)
+        this.network.post((s: any) => {
+            let bag = s
             if (bag.time >= this.lastTime) {
-                this.renderObj(bag.list)
+                this.renderObj(bag.list, false)
                 this.lastTime = bag.time
+            } else {
+                this.renderObj(bag.list, true)
             }
             this.lock = 0
         }, () => {
@@ -65,10 +109,20 @@ class MagicImage extends GameObject {
         this.lock = new Date().getTime()
     }
 
-    renderObj(otherList: Array<TransBase>) {
+    activeOnewBall(pos: any, rot: any, time: number) {
+        this.testID = (this.testID + 1) % this.test.length
+        let o = this.test[this.testID]
+        o.active = true
+        o.startPosition = pos
+        o.startRotation = rot
+        o.startTime = time
+    }
+
+    renderObj(otherList: Array<TransBase>, old: boolean) {
         for (let i in this.playerObjPool) {
             this.playerObjPool[i].mark = false
         }
+        console.log(otherList)
         let getFromLocal = (name: string) => {
             for (let i in this.playerObjPool) {
                 if (this.playerObjPool[i].name == name) {
@@ -82,9 +136,11 @@ class MagicImage extends GameObject {
             let netOne = otherList[i]
             let localOne = getFromLocal(netOne.n)
             if (localOne) {
-                localOne.netPosition = glm.vec3(netOne.p[0], netOne.p[1], netOne.p[2])
-                localOne.name = netOne.n
-                localOne.netFront = glm.vec3(netOne.r[0], netOne.r[1], netOne.r[2])
+                if (!old) {
+                    localOne.netPosition = glm.vec3(netOne.p[0], netOne.p[1], netOne.p[2])
+                    localOne.name = netOne.n
+                    localOne.netFront = glm.vec3(netOne.r[0], netOne.r[1], netOne.r[2])
+                }
                 localOne.nameBoard.active = true
             } else {
                 let newOne = getFromLocal('')
@@ -96,6 +152,14 @@ class MagicImage extends GameObject {
                 newOne.nameBoard.active = true
                 newOne.nameBoard.refreshNameText()
                 console.log(`${newOne.name}加入游戏`)
+            }
+            console.log(netOne.a)
+            for (let j = 0; j < netOne.a.length; j++) {
+                let action = netOne.a[i]
+                if (action.n == 'w1') {
+                    this.activeOnewBall(glm.vec3(action.p[0], action.p[1], action.p[2]),
+                        glm.vec3(action.r[0], action.r[1], action.r[2]), action.t)
+                }
             }
         }
         for (let i in this.playerObjPool) {
@@ -118,7 +182,16 @@ class MagicImage extends GameObject {
         this.textureAS = 'texture_face0AS'
         this.textureNormals = 'texture_face0Normals'
         this.show = false
+        for (let i = 0; i < 32; i++) {
+            this.test.push(new NewYearBall(i))
+        }
+        this.preGame = (self: MagicImage, gl: WebGL2RenderingContext) => {
+            self.light = gameWorld.newLight()
+            gameWorld.getLight(self.light).rgb = glm.vec3(0.97, 0.34, 0.56)
+            gameWorld.getLight(self.light).power = 5.0
+        }
         this.perLogic = function (self: MagicImage, delta: number) {
+            gameWorld.getLight(self.light).position = self.position
             let diff = gameWorld.camera.position['+'](glm.vec3(0., -0.8, 0.))['-'](self.position)
             let diffLen = glm.length(diff)
             if (diffLen > 3. && diffLen < 16. && self.willCaching) {
@@ -130,6 +203,27 @@ class MagicImage extends GameObject {
             }
             if (diffLen > 16.) {
                 self.willCaching = false
+            }
+
+            self.testPut += delta / 1000
+            if (self.testPut > 3) self.testPut = 3
+
+            if (gameEvent['1'] && self.testPut >= 3) {
+                self.testPut = 0
+                let t = localTime()
+                let front = glm.normalize(glm.vec2(gameWorld.camera.front.x, gameWorld.camera.front.z))
+                let pos = gameWorld.camera.position['+'](
+                    glm.vec3(front.x, 0, front.y)['*'](4)
+                )
+                pos.y = getHeight(pos.x, pos.z, 'map_mapCollision', gMapCenter, gMapScale, gMapZMin, gMapZMax, gMapWidth, gMapHeight)
+                let rot = glm.vec3(0, Math.atan2(diff.x, diff.z), 0)
+                self.activeOnewBall(pos, rot, t)
+                let a = new GameAction()
+                a.p = [pos.x, pos.y, pos.z]
+                a.r = [rot.x, rot.y, rot.z]
+                a.t = t
+                a.n = 'w1'
+                self.network.massage.a.push(a)
             }
 
             self.timeToPost -= delta
@@ -155,6 +249,8 @@ class OtherPlayer extends GameObject {
 
     nameBoard: NameBoard = null
 
+    size: number = 4
+
     constructor() {
         super()
         this.active = false
@@ -179,6 +275,13 @@ class OtherPlayer extends GameObject {
             let front2 = glm.vec2(self.front.x, self.front.z)
             self.rotation.y = Math.atan2(-front2.x, -front2.y)
             self.rotation.x = Math.atan2(self.front.y, glm.length(front2))
+            let dis = glm.distance(self.position, gameWorld.camera.position)
+            if (dis < self.size) {
+                cvelocity['-='](glm.normalize(self.position['-'](gameWorld.camera.position))['*']((self.size - dis) * 12))
+                if (gameWorld.camera.position.y - self.position.y > self.size / 2) {
+                    conGround = true
+                }
+            }
         }
     }
 }
@@ -254,9 +357,54 @@ class NameBoard extends GameObject {
     }
 }
 
+function mapInit() {
+    let tmp = new GameObject()
+    tmp.model = 'model_mapBeach'
+    tmp.texture = 'texture_mapBeach'
+    tmp.textureASM = 'texture_mapBeachASM'
+    tmp.textureAS = 'texture_mapBeachAS'
+    tmp.textureNormals = 'texture_mapBeachNormals'
+    tmp.perLogic = (self: GameObject, delta: number) => { }
+    tmp.noiseSize = 8096
+    tmp.noiseForce = 0.05
+    gameWorld.objects.push(tmp)
+    tmp = new GameObject()
+    tmp.model = 'model_mapColl'
+    tmp.texture = 'texture_mapColl'
+    tmp.textureASM = 'texture_mapCollASM'
+    tmp.textureAS = 'texture_mapCollAS'
+    tmp.textureNormals = 'texture_mapCollNormals'
+    tmp.perLogic = (self: GameObject, delta: number) => { }
+    tmp.noiseSize = 2048
+    tmp.noiseForce = 0.12
+    gameWorld.objects.push(tmp)
+    tmp = new GameObject()
+    tmp.model = 'model_mapCover'
+    tmp.texture = 'texture_mapCover'
+    tmp.textureASM = 'texture_mapCoverASM'
+    tmp.textureAS = 'texture_mapCoverAS'
+    tmp.textureNormals = 'texture_mapCoverNormals'
+    tmp.perLogic = (self: GameObject, delta: number) => { }
+    tmp.noiseSize = 2038
+    tmp.noiseForce = 0.2
+    gameWorld.objects.push(tmp)
+    tmp = new GameObject()
+    tmp.model = 'model_mapPlants'
+    tmp.texture = 'texture_mapPlants'
+    tmp.textureASM = 'texture_mapPlantsASM'
+    tmp.textureAS = 'texture_mapPlantsAS'
+    tmp.textureNormals = 'texture_mapPlantsNormals'
+    tmp.perLogic = (self: GameObject, delta: number) => { }
+    tmp.noiseSize = 1024
+    tmp.noiseForce = 0.1
+    gameWorld.objects.push(tmp)
+}
+
 function gameConfig1() {
+    mapInit()
+
     let tmp = new MagicImage()
-    gameWorld.Objects.push(tmp)
+    gameWorld.objects.push(tmp)
 
     let oplist = []
     for (let i = 0; i < 16; i++) {
@@ -265,9 +413,23 @@ function gameConfig1() {
         nb.target = op
         op.nameBoard = nb
         oplist.push(op)
-        gameWorld.Objects.push(op)
-        gameWorld.Objects.push(nb)
+        gameWorld.objects.push(op)
+        gameWorld.objects.push(nb)
     }
 
     tmp.playerObjPool = oplist
+
+    let tmp2 = new GameObject()
+    tmp2.position = glm.vec3(38, 23, -59)
+    let old = tmp2.perLogic
+    tmp2.perLogic = (self: GameObject, delta: number) => {
+        old(self, delta)
+        self.position.y = getHeight(self.position.x, self.position.z, 'map_mapCollision', gMapCenter, gMapScale, gMapZMin, gMapZMax, gMapWidth, gMapHeight) + 3
+    }
+    gameWorld.objects.push(tmp2)
+
+    for (let i = 0; i < tmp.test.length; i++) {
+        tmp.test[i].active = false
+        gameWorld.objects.push(tmp.test[i])
+    }
 }

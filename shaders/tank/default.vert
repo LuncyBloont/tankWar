@@ -1,5 +1,5 @@
 #version 300 es
-precision mediump float;
+precision highp float;
 in vec3 pos;
 in vec2 uv;
 in vec3 normal;
@@ -8,6 +8,7 @@ in vec3 bitangent;
 out vec2 fuv;
 out vec3 fnormal;
 out vec3 fpos;
+out vec3 wpos;
 out vec4 vpos;
 out vec3 ftangent;
 out vec3 fbitangent;
@@ -25,7 +26,8 @@ uniform mat4 perspectiveShadow;
 
 void main() 
 {
-    fpos = (viewMatrix * rotate * vec4(pos, 1.)).xyz;
+    wpos = (rotate * vec4(pos, 1.)).xyz;
+    fpos = (viewMatrix * vec4(wpos, 1.)).xyz;
     gl_Position = perspective * vec4(fpos, 1.);
     fuv = uv;
     wnormal = (vec4(normal, 0.) * inRotate).xyz;

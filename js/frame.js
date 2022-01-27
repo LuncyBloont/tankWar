@@ -2,6 +2,7 @@
 /// <reference path="./assetLoader.ts" />
 /// <reference path="./renderWorld.ts" />
 /// <reference path="./tbn.ts" />
+/// <reference path="./gameLogic.ts" />
 var tank;
 (function (tank) {
     var shadowSize = 1024;
@@ -70,7 +71,7 @@ var tank;
         gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     }
-    function renderShadow(gl, shadowP, light, mapvao, mapIndex, delta, mapRotate, shadowMat, frame) {
+    function renderShadow(gl, shadowP, light, mapvao, mapIndex, delta, mapRotate, shadowMat, frame, asm) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, frame);
         gl.clearColor(1., 0., 0., 1.);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
@@ -79,6 +80,10 @@ var tank;
         gl.bindVertexArray(mapvao);
         gl.uniformMatrix4fv(gl.getUniformLocation(shadowP, 'perspectiveShadow'), false, shadowMat.array);
         gl.uniformMatrix4fv(gl.getUniformLocation(shadowP, 'rotate'), false, mapRotate.array);
+        gl.uniform1f(gl.getUniformLocation(shadowP, 'time'), localTime());
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, asm);
+        gl.uniform1i(gl.getUniformLocation(shadowP, 'tasm'), 0);
         gl.drawElements(gl.TRIANGLE_FAN, mapIndex.length, gl.UNSIGNED_INT, 0);
         gameWorld.renderObjects(gl, delta, null, tank.gameTime, light, null, null, shadowP, true, null, null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -216,8 +221,8 @@ var tank;
             gl.clear(gl.DEPTH_BUFFER_BIT);
             t += 0.;
             var rotate = glm.mat4(Math.cos(t), 0., Math.sin(t), 0., 0., 1., 0., 0., -Math.sin(t), 0., Math.cos(t), 0., 0., 0., 0., 1.)['*'](glm.mat4(1., 0., 0., 0., 0., Math.cos(t / 4.), -Math.sin(t / 4.), 0., 0., Math.sin(t / 4.), Math.cos(t / 4.), 0., 0., 0., 0., 1.));
-            var shadowMatrix = gameWorld.getShadowMatrix(glm.vec3(light['sunDir'][0], light['sunDir'][1], light['sunDir'][2]), 30., 30., 1., 1., 120., 60.);
-            renderShadow(gl, shadowP, light, vao, findex, delta, rotate, shadowMatrix, shadowBuffer);
+            var shadowMatrix = gameWorld.getShadowMatrix(glm.vec3(light['sunDir'][0], light['sunDir'][1], light['sunDir'][2]), 30., 30., shadowSize, shadowSize, 120., 60.);
+            renderShadow(gl, shadowP, light, vao, findex, delta, rotate, shadowMatrix, shadowBuffer, asm);
             gl.viewport(0, 0, tank.canvas.width, tank.canvas.height);
             gl.useProgram(prog);
             gl.bindVertexArray(vao);
@@ -256,6 +261,10 @@ var tank;
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'inRotate'), false, glm.inverse(rotate).array);
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'viewMatrix'), false, viewMatrix.array);
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'perspectiveShadow'), false, shadowMatrix.array);
+            gl.uniform1f(gl.getUniformLocation(prog, 'noiseSize'), 2048);
+            gl.uniform1f(gl.getUniformLocation(prog, 'noiseForce'), 0.15);
+            gl.uniform3fv(gl.getUniformLocation(prog, 'light'), gameWorld.getArrayOfLight());
+            gl.uniform3fv(gl.getUniformLocation(prog, 'lightRGB'), gameWorld.getColorArrayOfLight());
             gl.enable(gl.CULL_FACE);
             gl.drawElements(gl.TRIANGLE_FAN, findex.length, gl.UNSIGNED_INT, 0);
             gameWorld.renderObjects(gl, delta, sky, tank.gameTime, light, viewMatrix, perspective, null, false, shadowMatrix, shadowTex);

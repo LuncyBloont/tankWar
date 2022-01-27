@@ -1,11 +1,13 @@
 import { createServer, IncomingMessage, ServerResponse } from 'http'
 import { readFile } from 'fs'
-import { requestFile } from './server/requestFilter'
+import { requestFile, xFile } from './server/requestFilter'
 import { gameNetwork } from './server/gameStatus'
 
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     let imageType = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'icon']
     let audioType = ['mp3', 'wav']
+    let xType = ['map']
+    let xTypeRel = ['map']
     let midPos: number = req.url.indexOf('?')
     if (midPos < 0) midPos = req.url.length
     let path: string = req.url.substring(1, midPos)
@@ -34,7 +36,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
                     res.end('404 No such file: ' + path)
                 } else {
                     res.statusCode = 200
-                    res.setHeader('Content-Type', 'image/' + ftype)
                     res.end(data)
                 }
             })
@@ -46,8 +47,20 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
                     res.end('404 No such file: ' + path)
                 } else {
                     res.statusCode = 200
-                    res.setHeader('Content-Type', 'audio/' + ftype)
                     res.end(data)
+                }
+            })
+        } else if (xType.indexOf(ftype) >= 0) {
+            let relPath = path.substring(0, path.lastIndexOf('.')) + '.' + xTypeRel[xType.indexOf(ftype)]
+            console.log(relPath)
+            readFile(relPath, null, (err: NodeJS.ErrnoException, data: Buffer) => {
+                if (err) {
+                    res.statusCode = 404
+                    res.setHeader('Content-Type', 'text/plain')
+                    res.end('404 No such xfile' + relPath + ' (' + path + ')')
+                } else {
+                    res.statusCode = 200
+                    res.end(xFile(data, ftype))
                 }
             })
         } else {

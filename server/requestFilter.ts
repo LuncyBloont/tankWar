@@ -1,5 +1,11 @@
 
-export function requestFile(data: string, type: string): { type: string, data: string} {
+export function xFile(data: Buffer, type: string) {
+    if (type == 'map') {
+        return data
+    }
+}
+
+export function requestFile(data: string, type: string): { type: string, data: string } {
     let textType: string = ''
     switch (type) {
         case 'html':

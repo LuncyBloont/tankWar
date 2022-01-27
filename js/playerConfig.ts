@@ -1,7 +1,9 @@
+/// <reference path="./gameLogic.ts" />
+
 namespace player {
     export let playerID: string = ''
     export function setPlayerID(name: string) {
-        playerID = name + '>>$<<' + new Date().getTime().toString(16)
+        playerID = name + '>>$<<' + localTime().toString(16)
     }
 
     export function getIDByUI(callback: Function) {

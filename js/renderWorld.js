@@ -6,7 +6,7 @@ var GameObject = /** @class */ (function () {
         this.active = true;
         this.show = true;
         this.name = 'default';
-        this.position = glm.vec3(1., 2., 0.);
+        this.position = glm.vec3(0., 0., 0.);
         this.rotation = glm.vec3(0., 0., 0.);
         this.scale = glm.vec3(1., 1., 1.);
         this.model = 'model_docter';
@@ -17,24 +17,99 @@ var GameObject = /** @class */ (function () {
         this.textureEmission = 'texture_black';
         this.shaderProgram = null;
         this.shadow = true;
+        this.noiseSize = 1024;
+        this.noiseForce = 0.2;
+        this.backenPointLight = [false, false, false, false, false, false, false, false];
         this.perFrame = function (self, gl, delta, shadow) { };
         this.perLogic = function (self, delta) {
-            self.rotation.y += delta * 0.008;
+            self.rotation.y += delta * 0.0008;
         };
         this.preGame = function (self, gl) { };
     }
     return GameObject;
 }());
+var Light = /** @class */ (function () {
+    function Light() {
+        this.position = glm.vec3(0, 0, 0);
+        this.rgb = glm.vec3(0, 0, 0);
+        this.power = 0;
+    }
+    return Light;
+}());
 var gameWorld;
 (function (gameWorld) {
     gameWorld.camera = {
-        position: glm.vec3(0., 0., 5.),
+        position: glm.vec3(0., 15., 5.),
         front: glm.vec3(0., 0., -1.),
         right: glm.vec3(1., 0., 0.),
         up: glm.vec3(0., 1., 0.),
         fov: 65.
     };
-    gameWorld.Objects = [];
+    gameWorld.objects = [];
+    var lights = [
+        new Light(), new Light(), new Light(), new Light(),
+        new Light(), new Light(), new Light(), new Light()
+    ];
+    var lightMark = [
+        false, false, false, false,
+        false, false, false, false
+    ];
+    var lightCount = 8;
+    function setLight(l, index) {
+        if (index >= 0 && index < lightCount) {
+            lights[index] = l;
+        }
+    }
+    gameWorld.setLight = setLight;
+    function getLight(index) {
+        if (index >= 0 && index < lightCount) {
+            return lights[index];
+        }
+    }
+    gameWorld.getLight = getLight;
+    function newLight() {
+        for (var i = 0; i < lightMark.length; i++) {
+            if (!lightMark[i]) {
+                lightMark[i] = true;
+                return i;
+            }
+        }
+        return -1;
+    }
+    gameWorld.newLight = newLight;
+    function deleteLight(index) {
+        if (index < 0 || index >= lightCount) {
+            return -1;
+        }
+        if (lightMark[index]) {
+            lightMark[index] = false;
+            return index;
+        }
+        else {
+            return -1;
+        }
+    }
+    gameWorld.deleteLight = deleteLight;
+    function getArrayOfLight() {
+        var arr = [];
+        for (var i = 0; i < lightCount; i++) {
+            arr.push(lights[i].position.x);
+            arr.push(lights[i].position.y);
+            arr.push(lights[i].position.z);
+        }
+        return new Float32Array(arr);
+    }
+    gameWorld.getArrayOfLight = getArrayOfLight;
+    function getColorArrayOfLight() {
+        var arr = [];
+        for (var i = 0; i < lightCount; i++) {
+            arr.push(lights[i].rgb.x * lights[i].power);
+            arr.push(lights[i].rgb.y * lights[i].power);
+            arr.push(lights[i].rgb.z * lights[i].power);
+        }
+        return new Float32Array(arr);
+    }
+    gameWorld.getColorArrayOfLight = getColorArrayOfLight;
     function fixCamera() {
         gameWorld.camera.front = glm.normalize(gameWorld.camera.front);
         gameWorld.camera.right = glm.normalize(glm.cross(gameWorld.camera.front, glm.vec3(0., 1., 0.)));
@@ -65,7 +140,8 @@ var gameWorld;
         var front = glm.normalize(sunDir);
         var right = glm.normalize(glm.cross(front, glm.vec3(0., 0., 1.)));
         var up = glm.cross(right, front);
-        return glm.mat4(twidth / lwidth / 2., 0., 0., 0., 0., theight / lheight / 2., 0., 0., 0., 0., 1. / ldepth, 0., 0., 0., offset / ldepth, 1.)['*'](glm.mat4(right.x, up.x, front.x, 0., right.y, up.y, front.y, 0., right.z, up.z, front.z, 0., 0., 0., 0., 1.))['*'](glm.mat4(1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., -gameWorld.camera.position.x, -gameWorld.camera.position.y, -gameWorld.camera.position.z, 1.));
+        var m = glm.mat4(1 / lwidth / 2., 0., 0., 0., 0., 1 / lheight / 2., 0., 0., 0., 0., 1. / ldepth, 0., 0., 0., offset / ldepth, 1.)['*'](glm.mat4(right.x, up.x, front.x, 0., right.y, up.y, front.y, 0., right.z, up.z, front.z, 0., 0., 0., 0., 1.))['*'](glm.mat4(1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., -gameWorld.camera.position.x, -gameWorld.camera.position.y, -gameWorld.camera.position.z, 1.));
+        return m;
     }
     gameWorld.getShadowMatrix = getShadowMatrix;
     function perpareOne(gl, program, gobj) {
@@ -128,15 +204,21 @@ var gameWorld;
     }
     gameWorld.perpareOne = perpareOne;
     function prepareObjexts(gl, program) {
-        for (var i in gameWorld.Objects) {
-            var gobj = gameWorld.Objects[i];
+        for (var i in gameWorld.objects) {
+            var gobj = gameWorld.objects[i];
             perpareOne(gl, program, gobj);
         }
     }
     gameWorld.prepareObjexts = prepareObjexts;
     function renderObjects(gl, delta, sky, time, light, viewMat, perspective, program, shadow, shadowMat, shadowMap) {
-        for (var i in gameWorld.Objects) {
-            var gobj = gameWorld.Objects[i];
+        var lightArr;
+        var lightColorArr;
+        if (!shadow) {
+            lightArr = getArrayOfLight();
+            lightColorArr = getColorArrayOfLight();
+        }
+        for (var i in gameWorld.objects) {
+            var gobj = gameWorld.objects[i];
             if (!gobj.active || !gobj.show || (shadow && !gobj.shadow))
                 continue;
             var prog = program ? program : gobj.shaderProgram;
@@ -165,10 +247,20 @@ var gameWorld;
                 gl.bindTexture(gl.TEXTURE_2D, gobj.idOfEmissionTexture);
                 gl.uniform1i(gl.getUniformLocation(prog, 'emission'), 6);
                 gl.uniform1f(gl.getUniformLocation(prog, 'time'), time);
+                gl.uniform1f(gl.getUniformLocation(prog, 'noiseSize'), gobj.noiseSize);
+                gl.uniform1f(gl.getUniformLocation(prog, 'noiseForce'), gobj.noiseForce);
                 gl.uniform1f(gl.getUniformLocation(prog, 'sunForce'), light['sunForce']);
                 gl.uniform1f(gl.getUniformLocation(prog, 'envForce'), light['envForce']);
                 gl.uniform3f(gl.getUniformLocation(prog, 'sunColor'), light['sunColor'][0], light['sunColor'][1], light['sunColor'][2]);
                 gl.uniform3f(gl.getUniformLocation(prog, 'envColor'), light['envColor'][0], light['envColor'][1], light['envColor'][2]);
+                gl.uniform3fv(gl.getUniformLocation(prog, 'light'), lightArr);
+                gl.uniform3fv(gl.getUniformLocation(prog, 'lightRGB'), lightColorArr);
+            }
+            else {
+                gl.uniform1f(gl.getUniformLocation(prog, 'time'), time);
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, gobj.idOfASMTexture);
+                gl.uniform1i(gl.getUniformLocation(prog, 'tasm'), 0);
             }
             var cosx = Math.cos(gobj.rotation.x), sinx = Math.sin(gobj.rotation.x);
             var cosy = Math.cos(gobj.rotation.y), siny = Math.sin(gobj.rotation.y);
@@ -195,8 +287,8 @@ var gameWorld;
     }
     gameWorld.renderObjects = renderObjects;
     function logicLoop(delta) {
-        for (var i in gameWorld.Objects) {
-            var gobj = gameWorld.Objects[i];
+        for (var i in gameWorld.objects) {
+            var gobj = gameWorld.objects[i];
             if (!gobj.active)
                 continue;
             gobj.perLogic(gobj, delta);

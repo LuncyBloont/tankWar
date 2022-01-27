@@ -5,5 +5,4 @@ tsc ./js/frame.ts ./js/glmTypesGen.ts ./js/alert.ts ./js/renderWorld.ts ./js/gam
 tsc ./js/playerConfig.ts
 tsc ./server/requestFilter.ts ./server/gameStatus.ts
 echo Done.
-read a
 exit

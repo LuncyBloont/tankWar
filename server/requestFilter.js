@@ -1,6 +1,12 @@
 "use strict";
 exports.__esModule = true;
-exports.requestFile = void 0;
+exports.requestFile = exports.xFile = void 0;
+function xFile(data, type) {
+    if (type == 'map') {
+        return data;
+    }
+}
+exports.xFile = xFile;
 function requestFile(data, type) {
     var textType = '';
     switch (type) {

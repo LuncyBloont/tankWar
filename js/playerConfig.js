@@ -1,8 +1,9 @@
+/// <reference path="./gameLogic.ts" />
 var player;
 (function (player) {
     player.playerID = '';
     function setPlayerID(name) {
-        player.playerID = name + '>>$<<' + new Date().getTime().toString(16);
+        player.playerID = name + '>>$<<' + localTime().toString(16);
     }
     player.setPlayerID = setPlayerID;
     function getIDByUI(callback) {

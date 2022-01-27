@@ -32,5 +32,4 @@ cp -r ./run.sh tmp/
 scp -r ./tmp ${user}@${server}:~/webs/tank
 rm -r tmp
 echo Done.
-read a
 exit
