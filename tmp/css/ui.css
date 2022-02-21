@@ -1,0 +1,85 @@
+.centerTips {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.gameCanvas {
+    background: #FFCC34;
+    width: 100%;
+}
+
+#messageBox {
+    width: auto;
+    height: auto;
+    display: inline-block;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: #BACCDD;
+    box-shadow: #333 0px 0px 5px 1px;
+    border-radius: 15px;
+    padding: 9px 14px;
+}
+
+.ui {
+    padding: 9px;
+    border-radius: 6px;
+    box-shadow: rgba(0, 0, 0, 0.6) 0px 0px 3px 0px;
+}
+
+input {
+    background: none;
+    border-width: 0px 0px 2px 0px;
+    border-color: bisque;
+    border-radius: 0px;
+    padding: 4px;
+}
+
+button {
+    background: none;
+    margin: 1px 8px 1px 8px;
+    border: 2px solid #676767;
+    border-radius: 6px;
+    padding: 3px 12px 3px 12px;
+}
+
+.gameView {
+    width: 100%;
+    position: absolute;
+    left: 0px;
+    top: 0px;
+}
+
+.pmbox {
+    position: fixed;
+    top: 50%;
+    left: 16px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 12px;
+    color: aliceblue;
+    width: 220pt;
+    font-size: 10pt;
+    height: 35%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.pminput {
+    position: fixed;
+    top: 90%;
+    left: 16px;
+    width: 220pt;
+    font-size: 10pt;
+    background: rgba(0, 0, 0, 0.5);
+    color: aliceblue;
+    height: auto;
+    padding:  12px;
+    border-width: 0px 0px 1px 0px;
+    border-color: greenyellow;
+    border-style: ridge;
+    overflow: hidden;
+}

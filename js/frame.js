@@ -1,6 +1,7 @@
 /// <reference path="./glm-js.min.d.ts" />
 /// <reference path="./assetLoader.ts" />
 /// <reference path="./renderWorld.ts" />
+/// <reference path="./playerConfig.ts" />
 /// <reference path="./tbn.ts" />
 /// <reference path="./gameLogic.ts" />
 var tank;
@@ -11,14 +12,34 @@ var tank;
     tank.gameTime = 0;
     tank.gameGL = null;
     tank.commonProgram = null;
+    tank.playerMessageBox = document.createElement('div');
+    tank.playerMBoxInput = document.createElement('input');
+    var playMBoxMaxSize = 4096;
+    function gameLog(s, name, color) {
+        var msg = "<span style=\"color: #".concat(color, "\">").concat(name, "</span>: ").concat(s, "<br />");
+        var old = tank.playerMessageBox.innerHTML;
+        if (old.length > playMBoxMaxSize) {
+            old = old.substring(0, playMBoxMaxSize / 2 - msg.length);
+        }
+        tank.playerMessageBox.innerHTML = msg + old;
+    }
+    tank.gameLog = gameLog;
     function main() {
+        tank.playerMessageBox.className = 'pmbox';
+        tank.playerMBoxInput.className = 'pminput';
+        tank.playerMBoxInput.id = 'ID_pminput';
         tank.canvas = document.createElement('canvas');
         tank.canvas.className = 'gameCanvas';
-        document.body.appendChild(tank.canvas);
-        tank.canvas.addEventListener('click', function (ev) {
+        var div = document.createElement('div');
+        div.addEventListener('click', function (ev) {
             this.requestFullscreen();
-            this.requestPointerLock();
+            // this.requestPointerLock()
         });
+        div.appendChild(tank.canvas);
+        div.className = 'gameView';
+        document.body.appendChild(div);
+        div.appendChild(tank.playerMessageBox);
+        div.appendChild(tank.playerMBoxInput);
         tank.canvas.addEventListener('mousemove', function (ev) {
             tank.mouseXNoLimit += ev.movementX;
             tank.mouseYNoLimit += ev.movementY;
@@ -30,6 +51,8 @@ var tank;
                 tank.canvas.width = data.canvasWidth;
                 tank.canvas.height = data.canvasHeight;
                 tank.deltaTime = data.deltaTime;
+                player.version = data.version;
+                tank.playerMessageBox.innerHTML = '版本[' + player.version + '] 载入完成，初始化世界中…… <br />游戏规则: WASD移动；UHJK视角旋转；1、2 使用烟花；Y输入交流（回车发送；Tab取消）';
                 console.log("Game info:\n    [".concat(data.canvasWidth, "x").concat(data.canvasHeight, "]\n    ").concat(tank.deltaTime, "ms per frame"));
             }
             else {
@@ -84,6 +107,7 @@ var tank;
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, asm);
         gl.uniform1i(gl.getUniformLocation(shadowP, 'tasm'), 0);
+        gl.uniform1f(gl.getUniformLocation(shadowP, 'alpha'), 1);
         gl.drawElements(gl.TRIANGLE_FAN, mapIndex.length, gl.UNSIGNED_INT, 0);
         gameWorld.renderObjects(gl, delta, null, tank.gameTime, light, null, null, shadowP, true, null, null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -168,7 +192,7 @@ var tank;
         var asm = gl.createTexture();
         loadTexture(asm, assets['texture_tankASM'], gl);
         var bump = gl.createTexture();
-        loadTexture(bump, assets['texture_normal'], gl);
+        loadTexture(bump, assets['texture_tankNormals'], gl);
         var emission = gl.createTexture();
         loadTexture(emission, assets['texture_black'], gl);
         var sky = gl.createTexture();
@@ -263,8 +287,13 @@ var tank;
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'perspectiveShadow'), false, shadowMatrix.array);
             gl.uniform1f(gl.getUniformLocation(prog, 'noiseSize'), 2048);
             gl.uniform1f(gl.getUniformLocation(prog, 'noiseForce'), 0.15);
-            gl.uniform3fv(gl.getUniformLocation(prog, 'light'), gameWorld.getArrayOfLight());
-            gl.uniform3fv(gl.getUniformLocation(prog, 'lightRGB'), gameWorld.getColorArrayOfLight());
+            gameWorld.sortLight();
+            var ls = gameWorld.getArrayOfLight();
+            gl.uniform3fv(gl.getUniformLocation(prog, 'light'), ls[0]);
+            gl.uniform3fv(gl.getUniformLocation(prog, 'lightRGB'), ls[1]);
+            gl.uniform1f(gl.getUniformLocation(prog, 'emissionForce'), 0);
+            gl.uniform1f(gl.getUniformLocation(prog, 'alpha'), 1);
+            gl.uniform3f(gl.getUniformLocation(prog, 'mainColor'), 1, 1, 1);
             gl.enable(gl.CULL_FACE);
             gl.drawElements(gl.TRIANGLE_FAN, findex.length, gl.UNSIGNED_INT, 0);
             gameWorld.renderObjects(gl, delta, sky, tank.gameTime, light, viewMatrix, perspective, null, false, shadowMatrix, shadowTex);

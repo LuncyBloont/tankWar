@@ -6,7 +6,7 @@
 }
 
 .gameCanvas {
-    background: #000;
+    background: #FFCC34;
     width: 100%;
 }
 
@@ -44,4 +44,42 @@ button {
     border: 2px solid #676767;
     border-radius: 6px;
     padding: 3px 12px 3px 12px;
+}
+
+.gameView {
+    width: 100%;
+    position: absolute;
+    left: 0px;
+    top: 0px;
+}
+
+.pmbox {
+    position: fixed;
+    top: 50%;
+    left: 16px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 12px;
+    color: aliceblue;
+    width: 220pt;
+    font-size: 10pt;
+    height: 35%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.pminput {
+    position: fixed;
+    top: 90%;
+    left: 16px;
+    width: 220pt;
+    font-size: 10pt;
+    background: rgba(0, 0, 0, 0.5);
+    color: aliceblue;
+    height: auto;
+    padding:  12px;
+    border-width: 0px 0px 1px 0px;
+    border-color: greenyellow;
+    border-style: ridge;
+    overflow: hidden;
 }

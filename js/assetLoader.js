@@ -50,7 +50,7 @@ function loadOne(index, nameList) {
     }
     if (root == 'audio') {
         var adu_1 = new Audio();
-        adu_1.addEventListener('load', function (ev) {
+        adu_1.addEventListener('loadeddata', function (ev) {
             assets[i] = adu_1;
             assetsNow += 1;
             console.log(assetTabel[i] + ' GOT!');

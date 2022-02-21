@@ -29,9 +29,11 @@
 
                 gameConfig1()
 
-                tank.startGame()
-
-                gameStart()
+                setTimeout(() => {
+                    tank.startGame()
+                    gameStart()
+                    tank.gameLog('欢迎来到<span style="color: #FF9944">“春节礼花广场”</span>', '系统', SYSColor)
+                }, 1000)
             })
             
         }

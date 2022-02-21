@@ -6,6 +6,10 @@ namespace player {
         playerID = name + '>>$<<' + localTime().toString(16)
     }
 
+    export let version = 'error'
+
+    export const messageList: Array<string> = []
+
     export function getIDByUI(callback: Function) {
         let ui = document.createElement('div')
         ui.className = 'centerTips ui'

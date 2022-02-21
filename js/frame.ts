@@ -1,6 +1,7 @@
 /// <reference path="./glm-js.min.d.ts" />
 /// <reference path="./assetLoader.ts" />
 /// <reference path="./renderWorld.ts" />
+/// <reference path="./playerConfig.ts" />
 /// <reference path="./tbn.ts" />
 /// <reference path="./gameLogic.ts" />
 
@@ -16,14 +17,35 @@ namespace tank {
     export let gameGL: WebGL2RenderingContext = null
     export let commonProgram: WebGLProgram = null
 
+    export const playerMessageBox = document.createElement('div')
+    export const playerMBoxInput = document.createElement('input')
+
+    const playMBoxMaxSize = 4096
+    export function gameLog(s: string, name: string, color: string) {
+        let msg = `<span style="color: #${color}">${name}</span>: ${s}<br />`
+        let old = playerMessageBox.innerHTML
+        if (old.length > playMBoxMaxSize) {
+            old = old.substring(0, playMBoxMaxSize / 2 - msg.length)
+        }
+        playerMessageBox.innerHTML = msg + old
+    }
+
     export function main(): boolean {
+        playerMessageBox.className = 'pmbox'
+        playerMBoxInput.className = 'pminput'
+        playerMBoxInput.id = 'ID_pminput'
         canvas = document.createElement('canvas')
         canvas.className = 'gameCanvas'
-        document.body.appendChild(canvas)
-        canvas.addEventListener('click', function (ev: MouseEvent) {
+        let div = document.createElement('div')
+        div.addEventListener('click', function (ev: MouseEvent) {
             this.requestFullscreen()
-            this.requestPointerLock()
+            // this.requestPointerLock()
         })
+        div.appendChild(canvas)
+        div.className = 'gameView'
+        document.body.appendChild(div)
+        div.appendChild(playerMessageBox)
+        div.appendChild(playerMBoxInput)
         canvas.addEventListener('mousemove', function (ev: MouseEvent) {
             mouseXNoLimit += ev.movementX
             mouseYNoLimit += ev.movementY
@@ -36,6 +58,8 @@ namespace tank {
                 canvas.width = data.canvasWidth
                 canvas.height = data.canvasHeight
                 deltaTime = data.deltaTime
+                player.version = data.version
+                playerMessageBox.innerHTML = '版本[' + player.version + '] 载入完成，初始化世界中…… <br />游戏规则: WASD移动；UHJK视角旋转；1、2 使用烟花；Y输入交流（回车发送；Tab取消）'
                 console.log(`Game info:\n    [${data.canvasWidth}x${data.canvasHeight}]\n    ${deltaTime}ms per frame`)
             } else {
                 console.log('Failed to read common config.')
@@ -99,6 +123,8 @@ namespace tank {
         gl.activeTexture(gl.TEXTURE0)
         gl.bindTexture(gl.TEXTURE_2D, asm)
         gl.uniform1i(gl.getUniformLocation(shadowP, 'tasm'), 0)
+        gl.uniform1f(gl.getUniformLocation(shadowP, 'alpha'), 1)
+
 
         gl.drawElements(gl.TRIANGLE_FAN, mapIndex.length, gl.UNSIGNED_INT, 0)
 
@@ -204,7 +230,7 @@ namespace tank {
         loadTexture(asm, assets['texture_tankASM'], gl)
 
         const bump = gl.createTexture()
-        loadTexture(bump, assets['texture_normal'], gl)
+        loadTexture(bump, assets['texture_tankNormals'], gl)
 
         const emission = gl.createTexture()
         loadTexture(emission, assets['texture_black'], gl)
@@ -335,8 +361,14 @@ namespace tank {
             gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'perspectiveShadow'), false, shadowMatrix.array)
             gl.uniform1f(gl.getUniformLocation(prog, 'noiseSize'), 2048)
             gl.uniform1f(gl.getUniformLocation(prog, 'noiseForce'), 0.15)
-            gl.uniform3fv(gl.getUniformLocation(prog, 'light'), gameWorld.getArrayOfLight())
-            gl.uniform3fv(gl.getUniformLocation(prog, 'lightRGB'), gameWorld.getColorArrayOfLight())
+            gameWorld.sortLight()
+            let ls = gameWorld.getArrayOfLight()
+            gl.uniform3fv(gl.getUniformLocation(prog, 'light'), ls[0])
+            gl.uniform3fv(gl.getUniformLocation(prog, 'lightRGB'), ls[1])
+
+            gl.uniform1f(gl.getUniformLocation(prog, 'emissionForce'), 0)
+            gl.uniform1f(gl.getUniformLocation(prog, 'alpha'), 1)
+            gl.uniform3f(gl.getUniformLocation(prog, 'mainColor'), 1, 1, 1)
 
             gl.enable(gl.CULL_FACE)
 

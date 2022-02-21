@@ -1,7 +1,7 @@
 #version 300 es
 
-#define shadowScale 0.0005
-#define shadowStep 0.001
+#define shadowScale 0.001
+#define shadowSample 2
 #define shadowBias 0.006
 
 precision highp float;
@@ -40,6 +40,10 @@ uniform mat4 viewMatrix;
 uniform float noiseSize;
 uniform float noiseForce;
 
+uniform float emissionForce;
+uniform float alpha;
+uniform vec3 mainColor;
+
 float noise(vec2 uv, float k) 
 {
     return fract(sin(dot(vec2(24.342429, 105.24344), uv)) * 284322.942925432 + time * k / 1056.);
@@ -50,18 +54,16 @@ float calSunForce(float asF)
     float sf = 0.;
     float base = 0.;
     float bias = shadowBias;
-    for (float x = -shadowScale; x <= shadowScale; x += shadowStep)
+    for (int i = 0; i < shadowSample; i++) 
     {
-        for (float y = -shadowScale; y <= shadowScale; y += shadowStep)
+        for (int j = 0; j < shadowSample; j++) 
         {
-            float r = noise(shadowPos.xy + vec2(x, 3. * y), 1.) * 3.141592654 * 2.;
-            float l = noise(shadowPos.xy + vec2(x * 3., y), 1.) * shadowScale * 2.;
-            vec2 uv = shadowPos.xy * 0.5 + 0.5 + vec2(cos(r) * l, sin(r) * l);
+            vec2 uv = shadowPos.xy * 0.5 + 0.5 + (vec2(i, j) - vec2(shadowSample) / 2.) * shadowScale;
             if (uv.x <= 0. || uv.x >= 1. || uv.y <= 0. || uv.y >= 1. || shadowPos.z >= 1.0 || shadowPos.z < 0.)
             {
                 sf += sunForce;
                 base += 1.;
-                break;
+                continue;
             }
             vec3 shadowc = texture(shadowMap, uv).xyz;
             float shadow = shadowc.r + shadowc.r / 255. + shadowc.b / 255. / 255.;
@@ -82,6 +84,7 @@ float calSunForce(float asF)
 
 float getNoise()
 {
+    if (noiseForce <= 0.) return 1.;
     float n00 = noise(floor(vec2(fuv.x, fuv.y) * noiseSize) / noiseSize, 0.) * noiseForce + (1. - noiseForce);
     float n01 = noise(floor(vec2(fuv.x, fuv.y + 1. / noiseSize) * noiseSize) / noiseSize, 0.) * noiseForce + (1. - noiseForce);
     float n10 = noise(floor(vec2(fuv.x + 1. / noiseSize, fuv.y) * noiseSize) / noiseSize, 0.) * noiseForce + (1. - noiseForce);
@@ -109,11 +112,13 @@ void main()
     wwnormal = normalize(tnorm.z * wwnormal + tnorm.x * wwtangent + tnorm.y * wwbitangent);
 
     vec3 col = vec3(0);
-    vec3 alb = texture(albedo, uv).rgb * 0.99 + vec3(0.01);
+    vec3 alb = texture(albedo, uv).rgb * mainColor * 0.99 + vec3(0.01);
     vec3 colm = alb;
     vec4 aocol = texture(tao, uv);
     float sf = calSunForce(aocol.g) * 0.8 + 0.2;
     vec3 a_s_m = texture(tasm, uv).rgb;
+    float alp = alpha * a_s_m.r;
+    if (alp < 1. && alp <= noise(vpos.xy / vpos.w, 1.)) discard;
     vec3 viewDir = -normalize(fpos);
     float specular = pow(a_s_m.g, 6.);
     float metallic = a_s_m.b;
@@ -131,13 +136,14 @@ void main()
 
     for (int i = 0; i < 8; i++)
     {
-        if (light[i].x < 0.001 && light[i].y < 0.001 && light[i].z < 0.001) break;
+        if (light[i].x < 0.001 && light[i].y < 0.001 && light[i].z < 0.001) continue;
         vec3 ldir = light[i] - wpos;
         float lForce = 1. / pow(length(ldir), 2.);
-        if (lForce < 0.001) break;
+        vec3 rgb = lightRGB[i] * lForce;
+        if (rgb.x < 0.001 && rgb.y < 0.001 && rgb.z < 0.001) continue;
         ldir = normalize(ldir);
-        refCol += lightRGB[i] * pow(max(0., dot(worldRef, ldir)), 1. + 256. * specular) * lForce;
-        diffCol += lightRGB[i] * max(0., dot(ldir, wolrdNormal)) * lForce;
+        refCol += rgb * pow(max(0., dot(worldRef, ldir)), 1. + 256. * specular);
+        diffCol += rgb * max(0., dot(ldir, wolrdNormal));
     }
 
     col += alb * skydiff * envForce * 0.99 * 1.5 + skycol * envForce * 0.01 * 1.5;
@@ -148,12 +154,10 @@ void main()
     colm *= skycol * envForce * 1.5 + 
         refCol * (specular * 128. + 129.) / 257. * 3. + 
         skycol * pow((1. - max(0., dot(viewDir, normal))), 4.) * 0.5;
-
-    if (a_s_m.r < 1. && a_s_m.r <= noise(vpos.xy / vpos.w, 1.)) discard;
     color = vec4(mix(col, colm, metallic * a_s_m.g), 1.);
     vec4 ems = texture(emission, uv);
     float ns = getNoise();
-    color = vec4(color.rgb * ns * aocol.r + alb * aocol.b * 5. + ems.rgb * ems.a * 5., 1.0);
+    color = vec4(color.rgb * ns * aocol.r + alb * aocol.b * 5. + ems.rgb * mainColor * ems.a * emissionForce * 5., 1.0);
     vec3 cc = color.rgb;
     cc.x = pow(cc.x, 1.3) * 1.5;
     cc.y = pow(cc.y, 1.3) * 1.5;

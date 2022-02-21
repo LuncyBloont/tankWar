@@ -53,7 +53,7 @@ function loadOne(index: number, nameList: Array<string>) {
     }
     if (root == 'audio') {
         let adu = new Audio()
-        adu.addEventListener('load', (ev: Event) => {
+        adu.addEventListener('loadeddata', (ev: Event) => {
             assets[i] = adu
             assetsNow += 1
             console.log(assetTabel[i] + ' GOT!')

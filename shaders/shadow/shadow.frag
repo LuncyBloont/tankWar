@@ -7,6 +7,7 @@ in vec4 vpos;
 out vec4 color;
 
 uniform float time;
+uniform float alpha;
 uniform sampler2D tasm;
 
 float noise(vec2 uv) 
@@ -17,6 +18,7 @@ float noise(vec2 uv)
 void main()
 {
     vec3 a_s_m = texture(tasm, fuv).rgb;
-    if (a_s_m.r < 1. && a_s_m.r <= noise(vpos.xy / vpos.w)) discard;
+    float alp = a_s_m.r * alpha;
+    if (alp < 1. && alp <= noise(vpos.xy / vpos.w)) discard;
     color = info;
 }

@@ -5,6 +5,9 @@ var fs_1 = require("fs");
 var requestFilter_1 = require("./server/requestFilter");
 var gameStatus_1 = require("./server/gameStatus");
 var server = (0, http_1.createServer)(function (req, res) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Headers", "Content-type,Content-Length,Authorization,Accept,X-Requested-Width");
+    res.setHeader("Access-Control-Allow-Methods", "PUT,POST,GET,DELETE,OPTIONS");
     var imageType = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'icon'];
     var audioType = ['mp3', 'wav'];
     var xType = ['map'];
@@ -18,6 +21,10 @@ var server = (0, http_1.createServer)(function (req, res) {
     if (req.method == 'POST') {
         req.on('data', function (data) {
             res.end(gameStatus_1.gameNetwork.gotMsg(data));
+        });
+        req.on('error', function (err) {
+            console.log('Data from client error');
+            res.end('timeout');
         });
         res.statusCode = 200;
         res.setHeader('Content-Type', 'text/plain');
@@ -44,6 +51,7 @@ var server = (0, http_1.createServer)(function (req, res) {
             });
         }
         else if (audioType.indexOf(ftype) >= 0) {
+            console.log(path);
             (0, fs_1.readFile)(path, null, function (err, data) {
                 if (err) {
                     res.statusCode = 404;
@@ -53,6 +61,7 @@ var server = (0, http_1.createServer)(function (req, res) {
                 else {
                     res.statusCode = 200;
                     res.end(data);
+                    console.log(path + ' respones');
                 }
             });
         }

@@ -6,6 +6,8 @@ var player;
         player.playerID = name + '>>$<<' + localTime().toString(16);
     }
     player.setPlayerID = setPlayerID;
+    player.version = 'error';
+    player.messageList = [];
     function getIDByUI(callback) {
         var ui = document.createElement('div');
         ui.className = 'centerTips ui';

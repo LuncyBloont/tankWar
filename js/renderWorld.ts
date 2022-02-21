@@ -15,10 +15,13 @@ class GameObject {
     textureAS: string = 'texture_kikiAS'
     textureNormals: string = 'texture_kikiNormals'
     textureEmission: string = 'texture_black'
+    emission: number = 1
+    alpha: number = 1
+    texColor: any = glm.vec3(1, 1, 1)
     shaderProgram: WebGLProgram = null
     shadow: boolean = true
     noiseSize: number = 1024
-    noiseForce: number = 0.2
+    noiseForce: number = 0
     backenPointLight: Array<boolean> = [false, false, false, false, false, false, false, false]
     perFrame: (self: any, gl: WebGL2RenderingContext, delta: number, sahdow: boolean) => void =
         function (self: GameObject, gl: WebGL2RenderingContext, delta: number, shadow: boolean) { }
@@ -44,28 +47,146 @@ class Light {
     power: number = 0
 }
 
+class Heap<T> {
+    array: Array<T> = []
+    size: number = 0
+    max: T
+    compare: (a: T, b: T) => boolean
+    getLeft(ix: number): number {
+        let c = ix * 2
+        return c < this.array.length ? c : -1
+    }
+
+    getRight(ix: number): number {
+        let c = ix * 2 + 1
+        return c < this.array.length ? c : -1
+    }
+
+    getPre(ix: number): number {
+        let c = Math.floor(ix / 2)
+        return c
+    }
+
+    constructor(count: number, compare: (a: T, b: T) => boolean, max: T) {
+        this.array = new Array<T>(count + 1)
+        this.max = max
+        for (let i = 0; i < count + 1; i++) {
+            this.array[i] = max
+        }
+        this.compare = compare
+    }
+
+    clean() {
+        for (let i = 0; i < this.array.length; i++) {
+            this.array[i] = this.max
+        }
+    }
+
+    docom(a: T, b: T) {
+        if (a == this.max) return false
+        if (b == this.max) return true
+        if (this.compare(a, b)) return true
+        else return false
+    }
+
+    insert(a: T): boolean {
+        if (this.size + 1 < this.array.length) {
+            let ix = this.size + 1
+            this.size += 1
+            this.array[ix] = a
+            while (true) {
+                if (ix <= 1) return true
+                let p = this.getPre(ix)
+                if (this.docom(this.array[ix], this.array[p])) {
+                    let ex = this.array[ix]
+                    this.array[ix] = this.array[p]
+                    this.array[p] = ex
+                    ix = p
+                } else {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    delete(): T {
+        if (this.size > 0) {
+            this.size -= 1
+            let ix = 1
+            let res = this.array[1]
+            this.array[1] = this.max
+            while (true) {
+                let l = this.getLeft(ix)
+                let r = this.getRight(ix)
+                let up = ix
+                if (l < this.array.length && this.docom(this.array[l], this.array[up])) {
+                    up = l
+                }
+                if (r < this.array.length && this.docom(this.array[r], this.array[up])) {
+                    up = r
+                }
+
+                if (up == ix) {
+                    return res
+                }
+
+                let ex = this.array[ix]
+                this.array[ix] = this.array[up]
+                this.array[up] = ex
+                ix = up
+            }
+        }
+        return this.max
+    }
+
+    top(): T {
+        return this.array[1]
+    }
+}
+
 namespace gameWorld {
     export const camera = {
         position: glm.vec3(0., 15., 5.),
         front: glm.vec3(0., 0., -1.),
         right: glm.vec3(1., 0., 0.),
         up: glm.vec3(0., 1., 0.),
+        readOnlyRotation: glm.vec3(0, 0, 0),
         fov: 65.
     }
-    
+
     export const objects: Array<GameObject> = []
 
     const lights: Array<Light> = [
+        new Light(), new Light(), new Light(), new Light(),
+        new Light(), new Light(), new Light(), new Light(),
+        new Light(), new Light(), new Light(), new Light(),
+        new Light(), new Light(), new Light(), new Light(),
+        new Light(), new Light(), new Light(), new Light(),
+        new Light(), new Light(), new Light(), new Light(),
         new Light(), new Light(), new Light(), new Light(),
         new Light(), new Light(), new Light(), new Light()
     ]
 
     const lightMark: Array<boolean> = [
         false, false, false, false,
+        false, false, false, false,
+        false, false, false, false,
+        false, false, false, false,
+        false, false, false, false,
+        false, false, false, false,
+        false, false, false, false,
         false, false, false, false
     ]
 
-    const lightCount = 8
+    const lightHost: Array<GameObject> = [
+        null, null, null, null, null, null, null, null,
+        null, null, null, null, null, null, null, null,
+        null, null, null, null, null, null, null, null,
+        null, null, null, null, null, null, null, null
+    ]
+
+    const lightCount = 32
 
     export function setLight(l: Light, index: number) {
         if (index >= 0 && index < lightCount) {
@@ -79,14 +200,38 @@ namespace gameWorld {
         }
     }
 
-    export function newLight(): number {
+    export function getLightHost(index: number) {
+        return lightHost[index]
+    }
+
+    export function newLight(host: GameObject): number {
         for (let i = 0; i < lightMark.length; i++) {
             if (!lightMark[i]) {
+                lightMark[i] = true
+                lightHost[i] = host
+                return i
+            }
+        }
+
+        for (let i = 0; i < lightMark.length; i++) {
+            if (lights[i].power <= 0 || lights[i].rgb.x <= 0 || lights[i].rgb.y <= 0 || lights[i].rgb.z <= 0) {
+                lightHost[i] = host
                 lightMark[i] = true
                 return i
             }
         }
-        return -1
+
+        let min = 0
+        let minP = 1e9
+        for (let i = 0; i < lightMark.length; i++) {
+            if (lights[i].power <= minP) {
+                minP = lights[i].power
+                min = i
+            }
+        }
+        lightHost[min] = host
+        lightMark[min] = true
+        return min
     }
 
     export function deleteLight(index: number): number {
@@ -101,30 +246,39 @@ namespace gameWorld {
         }
     }
 
-    export function getArrayOfLight(): Float32Array {
-        let arr = []
+    let lightHeap = new Heap<Light>(64,
+        (a: Light, b: Light) => {
+            return a.power > b.power
+        }, null)
+
+    export function sortLight() {
+        lightHeap.clean()
         for (let i = 0; i < lightCount; i++) {
-            arr.push(lights[i].position.x)
-            arr.push(lights[i].position.y)
-            arr.push(lights[i].position.z)
+            lightHeap.insert(lights[i])
         }
-        return new Float32Array(arr)
     }
 
-    export function getColorArrayOfLight(): Float32Array {
+    export function getArrayOfLight(): Array<Float32Array> {
         let arr = []
+        let arr2 = []
         for (let i = 0; i < lightCount; i++) {
-            arr.push(lights[i].rgb.x * lights[i].power)
-            arr.push(lights[i].rgb.y * lights[i].power)
-            arr.push(lights[i].rgb.z * lights[i].power)
+            let l = lightHeap.delete()
+            arr.push(l.position.x)
+            arr.push(l.position.y)
+            arr.push(l.position.z)
+            arr2.push(l.rgb.x * l.power)
+            arr2.push(l.rgb.y * l.power)
+            arr2.push(l.rgb.z * l.power)
         }
-        return new Float32Array(arr)
+        return [new Float32Array(arr), new Float32Array(arr2)]
     }
 
     function fixCamera() {
         camera.front = glm.normalize(camera.front)
         camera.right = glm.normalize(glm.cross(camera.front, glm.vec3(0., 1., 0.)))
         camera.up = glm.cross(camera.right, camera.front)
+        let rinxz = glm.vec2(-camera.front.z, -camera.front.x)
+        camera.readOnlyRotation = glm.vec3(Math.atan2(camera.front.y, glm.length(rinxz)), Math.atan2(rinxz.y, rinxz.x), 0)
     }
 
     /**
@@ -252,14 +406,45 @@ namespace gameWorld {
         }
     }
 
+    export function rotateVec3(vec: any, rot: any) {
+        let nv = glm.vec4(vec, 0)
+
+        let res = rotateMat(rot)['*'](nv)
+
+        return glm.vec3(res.x, res.y, res.z)
+    }
+
+    export function rotateMat(rot: any) {
+        let cosx = Math.cos(rot.x), sinx = Math.sin(rot.x)
+        let cosy = Math.cos(rot.y), siny = Math.sin(rot.y)
+        let cosz = Math.cos(rot.z), sinz = Math.sin(rot.z)
+
+        let r = glm.mat4(
+            cosy, 0., -siny, 0.,
+            0., 1., 0., 0.,
+            siny, 0., cosy, 0.,
+            0., 0., 0., 1.
+        )['*'](glm.mat4(
+            1., 0., 0., 0.,
+            0., cosx, sinx, 0.,
+            0., -sinx, cosx, 0.,
+            0., 0., 0., 1.
+        ))['*'](glm.mat4(
+            cosz, sinz, 0., 0.,
+            -sinz, cosz, 0., 0.,
+            0., 0., 1., 0.,
+            0., 0., 0., 1.
+        ))
+        return r
+    }
+
     export function renderObjects(gl: WebGL2RenderingContext, delta: number, sky: WebGLTexture,
         time: number, light: any, viewMat: any, perspective: any, program: WebGLProgram, shadow: boolean,
         shadowMat: any, shadowMap: WebGLTexture) {
-        let lightArr: Float32Array
-        let lightColorArr: Float32Array
+        let lightList: Array<Float32Array>
         if (!shadow) {
-            lightArr = getArrayOfLight()
-            lightColorArr = getColorArrayOfLight()
+            sortLight()
+            lightList = getArrayOfLight()
         }
         for (let i in objects) {
             let gobj = objects[i]
@@ -297,40 +482,26 @@ namespace gameWorld {
                 gl.uniform1f(gl.getUniformLocation(prog, 'envForce'), light['envForce'])
                 gl.uniform3f(gl.getUniformLocation(prog, 'sunColor'), light['sunColor'][0], light['sunColor'][1], light['sunColor'][2])
                 gl.uniform3f(gl.getUniformLocation(prog, 'envColor'), light['envColor'][0], light['envColor'][1], light['envColor'][2])
-                gl.uniform3fv(gl.getUniformLocation(prog, 'light'), lightArr)
-                gl.uniform3fv(gl.getUniformLocation(prog, 'lightRGB'), lightColorArr)
+                gl.uniform3fv(gl.getUniformLocation(prog, 'light'), lightList[0])
+                gl.uniform3fv(gl.getUniformLocation(prog, 'lightRGB'), lightList[1])
+
+                gl.uniform1f(gl.getUniformLocation(prog, 'emissionForce'), gobj.emission)
+                gl.uniform1f(gl.getUniformLocation(prog, 'alpha'), gobj.alpha)
+                gl.uniform3f(gl.getUniformLocation(prog, 'mainColor'), gobj.texColor.x, gobj.texColor.y, gobj.texColor.z)
             } else {
                 gl.uniform1f(gl.getUniformLocation(prog, 'time'), time)
                 gl.activeTexture(gl.TEXTURE0)
                 gl.bindTexture(gl.TEXTURE_2D, gobj.idOfASMTexture)
+                gl.uniform1f(gl.getUniformLocation(prog, 'alpha'), gobj.alpha)
                 gl.uniform1i(gl.getUniformLocation(prog, 'tasm'), 0)
             }
-
-            let cosx = Math.cos(gobj.rotation.x), sinx = Math.sin(gobj.rotation.x)
-            let cosy = Math.cos(gobj.rotation.y), siny = Math.sin(gobj.rotation.y)
-            let cosz = Math.cos(gobj.rotation.z), sinz = Math.sin(gobj.rotation.z)
 
             let trans = glm.mat4(
                 1., 0., 0., 0.,
                 0., 1., 0., 0.,
                 0., 0., 1., 0.,
                 gobj.position.x, gobj.position.y, gobj.position.z, 1.
-            )['*'](glm.mat4(
-                cosy, 0., -siny, 0.,
-                0., 1., 0., 0.,
-                siny, 0., cosy, 0.,
-                0., 0., 0., 1.
-            ))['*'](glm.mat4(
-                1., 0., 0., 0.,
-                0., cosx, sinx, 0.,
-                0., -sinx, cosx, 0.,
-                0., 0., 0., 1.
-            ))['*'](glm.mat4(
-                cosz, sinz, 0., 0.,
-                -sinz, cosz, 0., 0.,
-                0., 0., 1., 0.,
-                0., 0., 0., 1.
-            ))['*'](glm.mat4(
+            )['*'](rotateMat(gobj.rotation))['*'](glm.mat4(
                 gobj.scale.x, 0., 0., 0,
                 0., gobj.scale.y, 0., 0.,
                 0., 0., gobj.scale.z, 0.,
@@ -343,8 +514,7 @@ namespace gameWorld {
             if (gl.getUniformLocation(prog, 'rotate') != -1) {
                 gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'rotate'), false, trans.array)
             }
-            if (gl.getUniformLocation(prog, 'inRotate') != -1)
-            {
+            if (gl.getUniformLocation(prog, 'inRotate') != -1) {
                 gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'inRotate'), false, glm.inverse(trans).array)
             }
             if (viewMat && gl.getUniformLocation(prog, 'viewMatrix') != -1) {
